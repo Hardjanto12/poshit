@@ -48,6 +48,8 @@ class DatabaseHelper {
       CREATE TABLE transactions(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         total_amount REAL NOT NULL,
+        amount_received REAL NOT NULL,
+        change REAL NOT NULL,
         transaction_date TEXT NOT NULL,
         date_created TEXT NOT NULL,
         date_updated TEXT NOT NULL

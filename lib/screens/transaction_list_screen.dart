@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:poshit/models/transaction.dart';
 import 'package:poshit/services/transaction_service.dart';
 import 'package:poshit/screens/invoice_screen.dart';
+import 'package:poshit/utils/currency_formatter.dart';
 
 class TransactionListScreen extends StatefulWidget {
   const TransactionListScreen({super.key});
@@ -53,7 +54,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                   child: ListTile(
                     title: Text('Transaction ID: ${transaction.id}'),
                     subtitle: Text(
-                      'Total: Rp. ${transaction.totalAmount.toStringAsFixed(0)} - Date: ${transaction.transactionDate}',
+                      'Total: Rp. ${transaction.totalAmount.toStringAsFixed(0)} - Date: ${formatDateTime(transaction.transactionDate)}',
                     ),
                     onTap: () {
                       Navigator.push(

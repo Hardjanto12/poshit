@@ -4,6 +4,7 @@ import 'package:poshit/models/transaction_item.dart';
 import 'package:poshit/models/product.dart';
 import 'package:poshit/services/transaction_service.dart';
 import 'package:poshit/services/product_service.dart';
+import 'package:poshit/utils/currency_formatter.dart';
 
 class InvoiceScreen extends StatefulWidget {
   final int transactionId;
@@ -76,7 +77,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Text('Date: ${transaction.transactionDate}'),
+                  Text('Date: ${formatDateTime(transaction.transactionDate)}'),
                   const SizedBox(height: 20),
                   const Text(
                     'Items:',
@@ -91,10 +92,12 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                         return ListTile(
                           title: Text(product?.name ?? 'Unknown Product'),
                           subtitle: Text(
-                            'Quantity: ${item.quantity} x Rp. ${item.priceAtTransaction.toStringAsFixed(2)}',
+                            'Quantity: ${item.quantity} x ${formatToIDR(item.priceAtTransaction)}',
                           ),
                           trailing: Text(
-                            'Rp. ${(item.quantity * item.priceAtTransaction).toStringAsFixed(2)}',
+                            formatToIDR(
+                              item.quantity * item.priceAtTransaction,
+                            ),
                           ),
                         );
                       },
@@ -103,12 +106,28 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                   const Divider(),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: Text(
-                      'Total Amount: Rp. ${transaction.totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Total Amount: ${formatToIDR(transaction.totalAmount)}',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Amount Received: ${formatToIDR(transaction.amountReceived)}',
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                        Text(
+                          'Change: ${formatToIDR(transaction.change)}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

@@ -4,6 +4,7 @@ import 'package:poshit/models/transaction.dart';
 import 'package:poshit/models/transaction_item.dart';
 import 'package:poshit/services/product_service.dart';
 import 'package:poshit/services/transaction_service.dart';
+import 'package:poshit/utils/currency_formatter.dart';
 
 class NewTransactionScreen extends StatefulWidget {
   const NewTransactionScreen({super.key});
@@ -17,11 +18,21 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   final TransactionService _transactionService = TransactionService();
   List<Product> _availableProducts = [];
   final Map<Product, int> _cart = {};
+  final TextEditingController _cashReceivedController = TextEditingController();
+  double _changeAmount = 0.0;
 
   @override
   void initState() {
     super.initState();
     _loadProducts();
+    _cashReceivedController.addListener(_onCashReceivedChanged);
+  }
+
+  @override
+  void dispose() {
+    _cashReceivedController.removeListener(_onCashReceivedChanged);
+    _cashReceivedController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProducts() async {
@@ -32,6 +43,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   void _addToCart(Product product) {
     setState(() {
       _cart.update(product, (value) => value + 1, ifAbsent: () => 1);
+      _onCashReceivedChanged(); // Recalculate change
     });
   }
 
@@ -44,6 +56,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
           _cart.remove(product);
         }
       }
+      _onCashReceivedChanged(); // Recalculate change
     });
   }
 
@@ -54,6 +67,14 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     );
   }
 
+  void _onCashReceivedChanged() {
+    final double total = _calculateTotal();
+    final double cashReceived = double.tryParse(_cashReceivedController.text) ?? 0.0;
+    setState(() {
+      _changeAmount = cashReceived - total;
+    });
+  }
+
   Future<void> _completeTransaction() async {
     if (_cart.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -62,9 +83,20 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
       return;
     }
 
-    final totalAmount = _calculateTotal();
+    final double totalAmount = _calculateTotal();
+    final double amountReceived = double.tryParse(_cashReceivedController.text) ?? 0.0;
+
+    if (amountReceived < totalAmount) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cash received is less than total amount.')),
+      );
+      return;
+    }
+
     final transaction = Transaction(
       totalAmount: totalAmount,
+      amountReceived: amountReceived,
+      change: _changeAmount,
       transactionDate: DateTime.now().toIso8601String(),
       dateCreated: DateTime.now().toIso8601String(),
       dateUpdated: DateTime.now().toIso8601String(),
@@ -88,6 +120,8 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
       );
       setState(() {
         _cart.clear();
+        _cashReceivedController.clear();
+        _changeAmount = 0.0;
       });
     } catch (e) {
       ScaffoldMessenger.of(
@@ -112,7 +146,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
                   child: ListTile(
                     title: Text(product.name),
                     subtitle: Text(
-                      'Price: Rp. ${product.price.toStringAsFixed(0)}',
+                      formatToIDR(product.price),
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.add_shopping_cart),
@@ -142,7 +176,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Rp. ${(entry.key.price * entry.value).toStringAsFixed(0)}',
+                              '${entry.key.name} x ${entry.value}',
                             ),
                             Row(
                               children: [
@@ -150,7 +184,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
                                   icon: const Icon(Icons.remove_circle_outline),
                                   onPressed: () => _removeFromCart(entry.key),
                                 ),
-                                Text('Qty: ${entry.value}'),
+                                Text(formatToIDR(entry.key.price * entry.value)),
                               ],
                             ),
                           ],
@@ -159,10 +193,28 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
                       .toList(),
                 const Divider(),
                 Text(
-                  'Total: Rp. ${_calculateTotal().toStringAsFixed(0)}',
+                  'Total: ${formatToIDR(_calculateTotal())}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _cashReceivedController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Cash Received',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Change: ${formatToIDR(_changeAmount)}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
                   ),
                 ),
                 const SizedBox(height: 10),

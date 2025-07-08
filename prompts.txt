@@ -32,3 +32,50 @@ username (text, not null, no whitespace),
 password (text, hashed),
 date created (date when the data created),
 date updated (date when the data updated/edited)
+
+
+** UPDATE **
+
+"Okay, let's build the core transaction and checkout feature for the 'PoSHIT' app.
+
+1. Database Schema:
+First, define the necessary database tables using sqflite.
+
+Create a transactions table with these fields:
+
+id (integer, primary key)
+
+total_amount (real, not null)
+
+amount_received (real, not null)
+
+change (real, not null)
+
+transaction_date (text, not null)
+
+Create a transaction_items linking table to know which products were in which transaction:
+
+id (integer, primary key)
+
+transaction_id (integer, foreign key to transactions table)
+
+product_id (integer, foreign key to products table)
+
+quantity (integer, not null)
+
+Also, generate the Dart model classes for Transaction and TransactionItem.
+
+2. Currency Formatting:
+Next, create a Dart utility function named formatToIDR. It should take a double as input and, using the intl package, return a String formatted as Indonesian Rupiah (e.g., 50000 becomes "Rp50.000").
+
+3. Checkout UI Logic:
+Finally, for the UI, when a cashier finalizes a sale:
+
+The screen must display the Total Amount using the formatToIDR function.
+
+There must be a text input field for the cashier to enter the 'Cash Received' from the customer.
+
+As the cashier types in the 'Cash Received' field, the app must automatically calculate the 'Change' (Cash Received - Total Amount) and display it in real-time, also formatted using formatToIDR.
+
+Upon completion, the new transaction and all its items should be saved to the database."
+
