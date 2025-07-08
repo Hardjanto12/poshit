@@ -20,9 +20,25 @@ class TransactionService {
     return transactionId;
   }
 
-  Future<List<poshit_txn.Transaction>> getTransactions() async {
+  Future<List<poshit_txn.Transaction>> getTransactions({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query('transactions');
+    List<Map<String, dynamic>> maps;
+    if (startDate != null && endDate != null) {
+      maps = await db.query(
+        'transactions',
+        where: 'transaction_date BETWEEN ? AND ?',
+        whereArgs: [
+          startDate.toIso8601String(),
+          endDate.toIso8601String(),
+        ],
+        orderBy: 'transaction_date DESC',
+      );
+    } else {
+      maps = await db.query('transactions', orderBy: 'transaction_date DESC');
+    }
     return List.generate(maps.length, (i) {
       return poshit_txn.Transaction.fromMap(maps[i]);
     });

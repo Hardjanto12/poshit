@@ -15,3 +15,8 @@ String formatDateTime(String isoString) {
   final dateFormat = DateFormat('dd-MM-yyyy HH:mm:ss');
   return dateFormat.format(dateTime);
 }
+
+String formatDate(DateTime date) {
+  final dateFormat = DateFormat('dd-MM-yyyy');
+  return dateFormat.format(date);
+}

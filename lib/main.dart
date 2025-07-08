@@ -14,18 +14,18 @@ import 'package:poshit/screens/reporting_dashboard_screen.dart';
 // The default sqflite package works on mobile and web, and FFI is only needed for desktop with extra setup.
 // If you want to support desktop, add sqflite_common_ffi to your dependencies and uncomment the following lines:
 
-// import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Uncomment this block if you add sqflite_common_ffi to your dependencies for desktop support.
-  /*
-  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+  // THIS IS THE CRITICAL PART FOR WINDOWS
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    // Initialize FFI
     sqfliteFfiInit();
+    // Change the default factory for sqflite to the FFI version
     databaseFactory = databaseFactoryFfi;
   }
-  */
+
   await DatabaseHelper().database; // Initialize the database
   print("Database initialized successfully.");
   runApp(const MyApp());

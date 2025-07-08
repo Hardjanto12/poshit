@@ -98,3 +98,11 @@ The dialog should show the transaction summary (total, cash received, change).
 It should have a 'Generate & Share PDF' button.
 
 When tapped, use the printing and pdf packages to create a simple PDF receipt containing the store name, transaction details, items purchased, and total amount. Then, bring up the native share sheet to send it via WhatsApp, email, etc.
+
+
+** UPDATE 3 **
+
+Now, edit the transaction list, i want the transaction list screen has filter by date. And generate the transaction list into pdf.  
+
+I also want to print automatically print the current finished transaction with bluetooth printer or other common mobile printing practice. The flow is, user create transaction, input customer money, and then show the invoice page together with printing the invoice, add other menu option to print or save to pdf. 
+
