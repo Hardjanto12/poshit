@@ -48,7 +48,10 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   }
 
   double _calculateTotal() {
-    return _cart.entries.fold(0.0, (sum, entry) => sum + (entry.key.price * entry.value));
+    return _cart.entries.fold(
+      0.0,
+      (sum, entry) => sum + (entry.key.price * entry.value),
+    );
   }
 
   Future<void> _completeTransaction() async {
@@ -87,18 +90,16 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
         _cart.clear();
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Transaction failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Transaction failed: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('New Transaction'),
-      ),
+      appBar: AppBar(title: const Text('New Transaction')),
       body: Column(
         children: [
           Expanded(
@@ -110,7 +111,9 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
                   margin: const EdgeInsets.all(8.0),
                   child: ListTile(
                     title: Text(product.name),
-                    subtitle: Text('Price: \$${product.price.toStringAsFixed(2)}'),
+                    subtitle: Text(
+                      'Price: Rp. ${product.price.toStringAsFixed(0)}',
+                    ),
                     trailing: IconButton(
                       icon: const Icon(Icons.add_shopping_cart),
                       onPressed: () => _addToCart(product),
@@ -126,29 +129,41 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Cart:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Cart:',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 if (_cart.isEmpty)
                   const Text('No items in cart')
                 else
-                  ..._cart.entries.map((entry) => Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('${entry.key.name} x ${entry.value}'),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline),
-                            onPressed: () => _removeFromCart(entry.key),
-                          ),
-                          Text(' \$${(entry.key.price * entry.value).toStringAsFixed(2)}'),
-                        ],
-                      ),
-                    ],
-                  )).toList(),
+                  ..._cart.entries
+                      .map(
+                        (entry) => Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Rp. ${(entry.key.price * entry.value).toStringAsFixed(0)}',
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle_outline),
+                                  onPressed: () => _removeFromCart(entry.key),
+                                ),
+                                Text('Qty: ${entry.value}'),
+                              ],
+                            ),
+                          ],
+                        ),
+                      )
+                      .toList(),
                 const Divider(),
                 Text(
-                  'Total: \$${_calculateTotal().toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  'Total: Rp. ${_calculateTotal().toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton(

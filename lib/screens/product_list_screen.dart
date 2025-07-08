@@ -37,7 +37,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
             onPressed: () async {
               final result = await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AddEditProductScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const AddEditProductScreen(),
+                ),
               );
               if (result == true) {
                 _refreshProducts();
@@ -64,7 +66,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   margin: const EdgeInsets.all(8.0),
                   child: ListTile(
                     title: Text(product.name),
-                    subtitle: Text('Price: ${product.price.toStringAsFixed(2)} | Stock: ${product.stockQuantity}'),
+                    subtitle: Text(
+                      'Price: Rp. ${product.price.toStringAsFixed(0)} | Stock: ${product.stockQuantity}',
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -73,7 +77,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           onPressed: () async {
                             final result = await Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => AddEditProductScreen(product: product)),
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    AddEditProductScreen(product: product),
+                              ),
                             );
                             if (result == true) {
                               _refreshProducts();
