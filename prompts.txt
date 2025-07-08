@@ -1,0 +1,34 @@
+"I want to build a Point of Sales Android app named 'PoSHIT'.
+
+Core Features:
+
+User registration and login (using basic simple sqlite manual auth);
+User add, delete, edit product/services;
+User add transactions;
+User view transactions history;
+
+A main app for a cashier to help generate invoice and record all transactions.
+
+Technology Stack:
+Language: Flutter
+Backend: SQLITE
+
+
+A 'Product' in the SQLite database should have the following fields:
+
+id (integer, primary key),
+name (text, not null),
+price (real, not null),
+sku (text, unique, can be null),
+stock_quantity (integer, default 0),
+date created (date when the data created),
+date updated (date when the data updated/edited)
+
+The 'User' should have the following fields:
+
+id (integer, primary key),
+name (text, not null),
+username (text, not null, no whitespace),
+password (text, hashed),
+date created (date when the data created),
+date updated (date when the data updated/edited)
