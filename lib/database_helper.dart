@@ -70,4 +70,46 @@ class DatabaseHelper {
       )
     ''');
   }
+
+  Future<Map<String, dynamic>> getTodaySummary() async {
+    final db = await database;
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+
+    final List<Map<String, dynamic>> salesResult = await db.rawQuery(
+      'SELECT SUM(total_amount) as totalRevenue, COUNT(id) as totalTransactions FROM transactions WHERE substr(transaction_date, 1, 10) = ?',
+      [today],
+    );
+
+    double totalRevenue = salesResult.first['totalRevenue'] ?? 0.0;
+    int totalTransactions = salesResult.first['totalTransactions'] ?? 0;
+    double averageSaleValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0.0;
+
+    return {
+      'totalRevenue': totalRevenue,
+      'totalTransactions': totalTransactions,
+      'averageSaleValue': averageSaleValue,
+    };
+  }
+
+  Future<List<Map<String, dynamic>>> getTopSellingProducts() async {
+    final db = await database;
+    final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30)).toIso8601String().substring(0, 10);
+
+    final List<Map<String, dynamic>> topProducts = await db.rawQuery(
+      '''
+      SELECT
+        p.name,
+        SUM(ti.quantity) as totalQuantitySold
+      FROM transaction_items ti
+      JOIN products p ON ti.product_id = p.id
+      JOIN transactions t ON ti.transaction_id = t.id
+      WHERE substr(t.transaction_date, 1, 10) >= ?
+      GROUP BY p.name
+      ORDER BY totalQuantitySold DESC
+      LIMIT 5
+      ''',
+      [thirtyDaysAgo],
+    );
+    return topProducts;
+  }
 }

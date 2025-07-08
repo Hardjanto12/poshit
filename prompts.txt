@@ -79,3 +79,22 @@ As the cashier types in the 'Cash Received' field, the app must automatically ca
 
 Upon completion, the new transaction and all its items should be saved to the database."
 
+** UPDATE 2 **
+
+Let's build a Reporting Dashboard screen. This screen should have three main sections:
+
+Today's Summary: Display cards showing today's total sales revenue (in IDR), the total number of transactions today, and the average sale value per transaction.
+
+Top Products: Show a list of the 5 best-selling products by quantity sold over the last 30 days.
+
+Sales History: Display a simple list of all past transactions, with the most recent at the top. Tapping on a transaction should show its detailed contents.
+
+This will require creating new query functions in the DatabaseHelper to calculate these statistics from the transactions and transaction_items tables
+
+Next, I want to generate a PDF receipt. After a transaction is successfully completed, a dialog should appear.
+
+The dialog should show the transaction summary (total, cash received, change).
+
+It should have a 'Generate & Share PDF' button.
+
+When tapped, use the printing and pdf packages to create a simple PDF receipt containing the store name, transaction details, items purchased, and total amount. Then, bring up the native share sheet to send it via WhatsApp, email, etc.

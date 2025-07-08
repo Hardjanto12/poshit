@@ -6,6 +6,10 @@ import 'package:poshit/screens/transaction_list_screen.dart';
 import 'package:poshit/screens/new_transaction_screen.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:poshit/screens/product_list_screen.dart';
+import 'package:poshit/screens/transaction_list_screen.dart';
+import 'package:poshit/screens/new_transaction_screen.dart';
+import 'package:poshit/screens/reporting_dashboard_screen.dart';
 // Remove the FFI import and initialization, as it causes errors if the package is not available.
 // The default sqflite package works on mobile and web, and FFI is only needed for desktop with extra setup.
 // If you want to support desktop, add sqflite_common_ffi to your dependencies and uncomment the following lines:
@@ -39,6 +43,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const LoginScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -200,6 +205,18 @@ class HomeScreen extends StatelessWidget {
                 );
               },
               child: const Text('View Transactions'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ReportingDashboardScreen(),
+                  ),
+                );
+              },
+              child: const Text('View Reports'),
             ),
           ],
         ),

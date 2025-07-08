@@ -5,6 +5,7 @@ import 'package:poshit/models/product.dart';
 import 'package:poshit/services/transaction_service.dart';
 import 'package:poshit/services/product_service.dart';
 import 'package:poshit/utils/currency_formatter.dart';
+import 'package:intl/intl.dart';
 
 class InvoiceScreen extends StatefulWidget {
   final int transactionId;
