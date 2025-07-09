@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:poshit/models/transaction.dart';
 import 'package:poshit/services/transaction_service.dart';
-import 'package:poshit/screens/invoice_screen.dart';
+
 import 'package:poshit/utils/currency_formatter.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+
+// Import the ReceiptPreviewScreen to fix the error
+import 'package:poshit/screens/receipt_preview_screen.dart';
 
 class TransactionListScreen extends StatefulWidget {
   const TransactionListScreen({super.key});
@@ -30,12 +33,9 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
 
   Future<void> _refreshTransactions() async {
     setState(() {
-      _transactionsFuture = _transactionService.getTransactions(
-        startDate: _startDate,
-        endDate: _endDate,
-      ).then(
-        (list) => list.cast<Transaction>(),
-      );
+      _transactionsFuture = _transactionService
+          .getTransactions(startDate: _startDate, endDate: _endDate)
+          .then((list) => list.cast<Transaction>());
     });
   }
 
@@ -58,7 +58,9 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     }
   }
 
-  Future<void> _generateTransactionListPdf(List<Transaction> transactions) async {
+  Future<void> _generateTransactionListPdf(
+    List<Transaction> transactions,
+  ) async {
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -67,12 +69,18 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Transaction History Report',
-                  style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'Transaction History Report',
+                style: pw.TextStyle(
+                  fontSize: 24,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
               pw.SizedBox(height: 20),
               if (_startDate != null && _endDate != null)
                 pw.Text(
-                    'Date Range: ${formatDate(_startDate!)} - ${formatDate(_endDate!)}'),
+                  'Date Range: ${formatDate(_startDate!)} - ${formatDate(_endDate!)}',
+                ),
               pw.SizedBox(height: 20),
               pw.Table.fromTextArray(
                 headers: ['ID', 'Total Amount', 'Date'],
@@ -91,7 +99,8 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     );
 
     await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdf.save());
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+    );
   }
 
   @override
@@ -174,12 +183,20 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                           subtitle: Text(
                             'Total: Rp. ${transaction.totalAmount.toStringAsFixed(0)} - Date: ${formatDateTime(transaction.transactionDate)}',
                           ),
-                          onTap: () {
+                          onTap: () async {
+                            final transactionItems = await _transactionService
+                                .getTransactionItems(
+                                  transaction.id!,
+                                ); // Fetch items
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => InvoiceScreen(
-                                    transactionId: transaction.id!),
+                                builder: (context) => ReceiptPreviewScreen(
+                                  transaction: transaction,
+                                  transactionItems: transactionItems,
+                                  cashReceived: transaction.amountReceived,
+                                  changeGiven: transaction.change,
+                                ),
                               ),
                             );
                           },

@@ -5,12 +5,7 @@ import 'package:poshit/models/transaction_item.dart';
 import 'package:poshit/services/product_service.dart';
 import 'package:poshit/services/transaction_service.dart';
 import 'package:poshit/utils/currency_formatter.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
-import 'package:share_plus/share_plus.dart';
+import 'package:poshit/screens/receipt_preview_screen.dart';
 
 class NewTransactionScreen extends StatefulWidget {
   const NewTransactionScreen({super.key});
@@ -134,150 +129,42 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Transaction completed successfully!')),
       );
-      final Map<Product, int> cartSnapshot = Map<Product, int>.from(_cart);
+      // Create a list of TransactionItem objects with product names for the receipt
+      final List<TransactionItem> receiptItems = _cart.entries.map((entry) {
+        return TransactionItem(
+          transactionId: transactionId,
+          productId: entry.key.id!,
+          quantity: entry.value,
+          priceAtTransaction: entry.key.price,
+          productName: entry.key.name, // Include product name for receipt
+          dateCreated: DateTime.now().toIso8601String(),
+          dateUpdated: DateTime.now().toIso8601String(),
+        );
+      }).toList();
+
+      // Clear cart and navigate to ReceiptPreviewScreen
       setState(() {
         _cart.clear();
         _cashReceivedController.clear();
         _changeAmount = 0.0;
       });
-      _showTransactionSummaryDialog(
-        transactionId,
-        totalAmount,
-        amountReceived,
-        amountReceived - totalAmount,
-        cartSnapshot,
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReceiptPreviewScreen(
+            transaction: transaction.copyWith(id: transactionId), // Pass the transaction with its new ID
+            transactionItems: receiptItems,
+            cashReceived: amountReceived,
+            changeGiven: _changeAmount,
+          ),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Transaction failed: $e')));
     }
-  }
-
-  void _showTransactionSummaryDialog(
-    int transactionId,
-    double totalAmount,
-    double amountReceived,
-    double change,
-    Map<Product, int> cartSnapshot,
-  ) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Transaction Summary'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Total Amount: ${formatToIDR(totalAmount)}'),
-              Text('Cash Received: ${formatToIDR(amountReceived)}'),
-              Text('Change: ${formatToIDR(change)}'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Close'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _generateAndSharePdf(transactionId, cartSnapshot);
-              },
-              child: const Text('Generate & Share PDF'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _generateAndSharePdf(
-    int transactionId,
-    Map<Product, int> cart,
-  ) async {
-    final transactionData = await _transactionService.getTransactions().then(
-      (transactions) => transactions.firstWhere((t) => t.id == transactionId),
-    );
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.Page(
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'PoSHIT - Receipt',
-                style: pw.TextStyle(
-                  fontSize: 24,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 20),
-              pw.Text('Transaction ID: ${transactionData.id}'),
-              pw.Text('Date: ${transactionData.transactionDate}'),
-              pw.SizedBox(height: 20),
-              pw.Text(
-                'Items:',
-                style: pw.TextStyle(
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 10),
-              ...cart.entries.map((entry) {
-                final product = entry.key;
-                final quantity = entry.value;
-                return pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('${product.name} x $quantity'),
-                    pw.Text(formatToIDR(quantity * product.price)),
-                  ],
-                );
-              }),
-              pw.Divider(),
-              pw.Align(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      'Total: ${formatToIDR(transactionData.totalAmount)}',
-                      style: pw.TextStyle(
-                        fontSize: 20,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                    pw.Text(
-                      'Cash Received: ${formatToIDR(transactionData.amountReceived)}',
-                      style: pw.TextStyle(fontSize: 16),
-                    ),
-                    pw.Text(
-                      'Change: ${formatToIDR(transactionData.change)}',
-                      style: pw.TextStyle(fontSize: 16, color: PdfColors.green),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    final output = await pdf.save();
-    final directory = await getTemporaryDirectory();
-    final file = File('${directory.path}/receipt_${transactionId}.pdf');
-    await file.writeAsBytes(output);
-
-    await Share.shareXFiles([
-      XFile(file.path),
-    ], text: 'Here is your PoSHIT receipt!');
   }
 
   @override

@@ -40,4 +40,24 @@ class Transaction {
       dateUpdated: map['date_updated'],
     );
   }
+
+  Transaction copyWith({
+    int? id,
+    double? totalAmount,
+    double? amountReceived,
+    double? change,
+    String? transactionDate,
+    String? dateCreated,
+    String? dateUpdated,
+  }) {
+    return Transaction(
+      id: id ?? this.id,
+      totalAmount: totalAmount ?? this.totalAmount,
+      amountReceived: amountReceived ?? this.amountReceived,
+      change: change ?? this.change,
+      transactionDate: transactionDate ?? this.transactionDate,
+      dateCreated: dateCreated ?? this.dateCreated,
+      dateUpdated: dateUpdated ?? this.dateUpdated,
+    );
+  }
 }

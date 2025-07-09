@@ -106,3 +106,59 @@ Now, edit the transaction list, i want the transaction list screen has filter by
 
 I also want to print automatically print the current finished transaction with bluetooth printer or other common mobile printing practice. The flow is, user create transaction, input customer money, and then show the invoice page together with printing the invoice, add other menu option to print or save to pdf. 
 
+** UPDATE 4 **
+Create the receipt feature with a preview screen.
+
+Navigation: After a transaction is successfully completed, the app should automatically navigate to a new full-screen page called ReceiptPreviewScreen.
+
+Screen Layout: The ReceiptPreviewScreen must display a visual preview of the receipt. This preview should be a widget that looks like a real receipt and contains:
+
+The store name
+
+Transaction ID and date
+
+A list of all items sold, with quantities and prices
+
+Subtotal, discount amount, and the final total
+
+Cash received and change given
+
+Action Buttons: At the bottom of the screen, include two prominent buttons:
+
+A 'Print' button: When tapped, this should use the blue_thermal_printer package to send the receipt data to a paired Bluetooth thermal printer.
+
+A 'Download PDF' button: When tapped, this should use the pdf and path_provider packages to generate a PDF file of the receipt and save it to the device's public downloads folder. Show a confirmation message like 'Receipt saved to Downloads' when complete.
+
+Closing the Screen: Add a 'Done' button in the app bar that, when tapped, navigates the user back to the main sales screen to start a new transaction."
+
+** UPDATE 5 **
+
+Let's upgrade the printing feature to support multiple connection types.
+
+Printer Settings Screen: First, create a new 'Printer Settings' page in the app. On this page, the user must be able to select their preferred printer type from a choice:
+
+Bluetooth
+
+System Printer (for USB/Wired)
+
+The app should save this choice so it remembers it for next time.
+
+Conditional Print Logic: Now, update the 'Print' button on the ReceiptPreviewScreen. Its behavior must change based on the setting saved above:
+
+If 'Bluetooth' is selected, use the blue_thermal_printer package to send the print job directly to the paired Bluetooth device.
+
+If 'System Printer' is selected, use the printing package to generate a PDF of the receipt and open the operating system's native print dialog. This will allow me to select my connected USB printer on desktop or any other printer configured on the OS."
+
+** UPDATE 6 **
+
+Let's finalize the receipt generation with optimized outputs for each function. On the ReceiptPreviewScreen, I need two distinct buttons:
+
+'Download PDF' Button: This function should work as planned. It will use the pdf package to generate a high-quality, visually formatted PDF file. This file is for digital use (emailing, saving) or for printing on a standard office printer.
+
+'Print' Button: This button is exclusively for thermal receipt printers. Its function must be to:
+
+Not create a PDF.
+
+Instead, use a package like esc_pos_utils_plus to build the receipt as a sequence of raw text and ESC/POS commands (for text alignment, bolding, and the paper cut command).
+
+Send these raw commands directly to the connected printer (either Bluetooth or USB, based on the settings)."

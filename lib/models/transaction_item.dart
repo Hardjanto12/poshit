@@ -4,6 +4,7 @@ class TransactionItem {
   int productId;
   int quantity;
   double priceAtTransaction;
+  String? productName; // Added for receipt display, not stored in DB
   String dateCreated;
   String dateUpdated;
 
@@ -13,6 +14,7 @@ class TransactionItem {
     required this.productId,
     required this.quantity,
     required this.priceAtTransaction,
+    this.productName,
     required this.dateCreated,
     required this.dateUpdated,
   });
