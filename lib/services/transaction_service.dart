@@ -2,9 +2,12 @@ import 'package:sqflite/sqflite.dart';
 import 'package:poshit/database_helper.dart';
 import 'package:poshit/models/transaction.dart' as poshit_txn;
 import 'package:poshit/models/transaction_item.dart';
+import 'package:poshit/models/product.dart'; // Import Product model
+import 'package:poshit/services/product_service.dart'; // Import ProductService
 
 class TransactionService {
   final DatabaseHelper _dbHelper = DatabaseHelper();
+  final ProductService _productService = ProductService(); // Instantiate ProductService
 
   Future<int> insertTransaction(
     poshit_txn.Transaction transaction,
@@ -51,8 +54,16 @@ class TransactionService {
       where: 'transaction_id = ?',
       whereArgs: [transactionId],
     );
-    return List.generate(maps.length, (i) {
-      return TransactionItem.fromMap(maps[i]);
-    });
+
+    List<TransactionItem> transactionItems = [];
+    for (var map in maps) {
+      TransactionItem item = TransactionItem.fromMap(map);
+      Product? product = await _productService.getProductById(item.productId);
+      if (product != null) {
+        item.productName = product.name;
+      }
+      transactionItems.add(item);
+    }
+    return transactionItems;
   }
 }

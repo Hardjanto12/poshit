@@ -36,4 +36,17 @@ class ProductService {
       whereArgs: [id],
     );
   }
+
+  Future<Product?> getProductById(int id) async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (maps.isNotEmpty) {
+      return Product.fromMap(maps.first);
+    }
+    return null;
+  }
 }
