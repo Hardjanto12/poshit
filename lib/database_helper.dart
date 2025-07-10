@@ -17,7 +17,12 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase() async {
     String path = join(await getDatabasesPath(), 'poshit.db');
-    return await openDatabase(path, version: 1, onCreate: _onCreate);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -69,6 +74,25 @@ class DatabaseHelper {
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
       )
     ''');
+
+    
+  await db.execute('''
+      CREATE TABLE settings(
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE settings(
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )
+      ''');
+    }
   }
 
   Future<Map<String, dynamic>> getTodaySummary() async {
@@ -82,7 +106,9 @@ class DatabaseHelper {
 
     double totalRevenue = salesResult.first['totalRevenue'] ?? 0.0;
     int totalTransactions = salesResult.first['totalTransactions'] ?? 0;
-    double averageSaleValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0.0;
+    double averageSaleValue = totalTransactions > 0
+        ? totalRevenue / totalTransactions
+        : 0.0;
 
     return {
       'totalRevenue': totalRevenue,
@@ -93,7 +119,10 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getTopSellingProducts() async {
     final db = await database;
-    final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30)).toIso8601String().substring(0, 10);
+    final thirtyDaysAgo = DateTime.now()
+        .subtract(const Duration(days: 30))
+        .toIso8601String()
+        .substring(0, 10);
 
     final List<Map<String, dynamic>> topProducts = await db.rawQuery(
       '''

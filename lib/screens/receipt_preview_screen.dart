@@ -9,9 +9,11 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
-import 'package:printing/printing.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:collection/collection.dart';
+import 'package:poshit/services/settings_service.dart';
+import 'package:printing/printing.dart';
 
 class ReceiptPreviewScreen extends StatefulWidget {
   final Transaction transaction;
@@ -20,23 +22,27 @@ class ReceiptPreviewScreen extends StatefulWidget {
   final double changeGiven;
 
   const ReceiptPreviewScreen({
-    Key? key,
+    super.key,
     required this.transaction,
     required this.transactionItems,
     required this.cashReceived,
     required this.changeGiven,
-  }) : super(key: key);
+  });
 
   @override
   State<ReceiptPreviewScreen> createState() => _ReceiptPreviewScreenState();
 }
 
 class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
+  final SettingsService _settingsService = SettingsService();
   List<BluetoothDevice> _devices = [];
   BluetoothDevice? _device;
   String _selectedPrinterType = 'Bluetooth'; // Default to Bluetooth
 
-  // BluetoothPrintPlus.isConnected is a ValueNotifier<bool>
+  String _businessName = 'My Store';
+  String _receiptFooter = 'Thank you!';
+
+  // BluetoothPrintPlus.isConnected is a bool, not a ValueNotifier
   bool get _connected => BluetoothPrintPlus.isConnected;
 
   @override
@@ -44,13 +50,21 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
     super.initState();
     _loadPrinterType();
     _initBluetooth(); // Call _initBluetooth to start scanning and attempt auto-connect
+    _loadSettings();
     BluetoothPrintPlus.connectState.listen((state) {
       if (mounted) setState(() {});
     });
   }
 
+  Future<void> _loadSettings() async {
+    _businessName = await _settingsService.getBusinessName();
+    _receiptFooter = await _settingsService.getReceiptFooter();
+    if (mounted) setState(() {});
+  }
+
   Future<void> _loadPrinterType() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       _selectedPrinterType = prefs.getString('printerType') ?? 'Bluetooth';
     });
@@ -61,34 +75,31 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
     await prefs.setString('printerType', type);
   }
 
-  Future<void> _saveLastConnectedDeviceAddress(String address) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('lastConnectedPrinterAddress', address);
-  }
-
-  void _onConnectionChanged() {
-    setState(() {});
-  }
-
   Future<void> _initBluetooth() async {
     final prefs = await SharedPreferences.getInstance();
     final lastAddress = prefs.getString('lastConnectedPrinterAddress');
 
     BluetoothPrintPlus.scanResults.listen((devices) async {
+      if (!mounted) return;
       setState(() {
         _devices = devices;
       });
-      if (lastAddress != null && _device == null) { // Only try to auto-connect if no device is currently selected
-        final deviceToConnect = devices.firstWhereOrNull((d) => d.address == lastAddress);
+      if (lastAddress != null && _device == null) {
+        // Only try to auto-connect if no device is currently selected
+        final deviceToConnect = devices.firstWhereOrNull(
+          (d) => d.address == lastAddress,
+        );
         if (deviceToConnect != null) {
-          _device = deviceToConnect; // Set the device for UI
+          setState(() {
+            _device = deviceToConnect; // Set the device for UI
+          });
           await _connect(); // Attempt to connect
         }
       }
     });
 
     BluetoothPrintPlus.connectState.listen((state) {
-      setState(() {});
+      if (mounted) setState(() {});
     });
 
     await BluetoothPrintPlus.startScan(timeout: const Duration(seconds: 4));
@@ -96,18 +107,23 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
 
   Future<void> _connect() async {
     if (_device == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('No device selected')));
       return;
     }
     try {
-      await BluetoothPrintPlus.connect(_device!);
-      await _saveLastConnectedDeviceAddress(_device!.address!);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Connected to ${_device!.name ?? "Printer"}')),
-      );
+      await BluetoothPrintPlus.connect(
+        _device!,
+      ); // _device is checked for null above
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Connected to ${_device?.name}')));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to connect: $e')));
@@ -117,10 +133,12 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
   Future<void> _disconnect() async {
     try {
       await BluetoothPrintPlus.disconnect();
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Disconnected')));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to disconnect: $e')));
@@ -128,8 +146,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
   }
 
   double _getItemTotal(TransactionItem item) {
-    // Fallback to 0 if null
-    return (item.priceAtTransaction ?? 0) * (item.quantity ?? 0);
+    return item.priceAtTransaction * item.quantity;
   }
 
   @override
@@ -138,183 +155,97 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
   }
 
   Future<void> _printReceipt() async {
-    if (_selectedPrinterType == 'Bluetooth') {
-      if (!_connected) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please connect to a Bluetooth printer first.'),
-          ),
-        );
-        return;
-      }
-
-      final profile = await CapabilityProfile.load();
-      final generator = Generator(PaperSize.mm80, profile);
-      List<int> bytes = [];
-
-      bytes += generator.text(
-        "PoSHIT Store",
-        styles: const PosStyles(
-          align: PosAlign.center,
-          bold: true,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+    if (!_connected) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please connect to a Bluetooth printer first.'),
         ),
       );
-      bytes += generator.text(
-        "--------------------------------",
-        styles: const PosStyles(align: PosAlign.center),
-      );
-      bytes += generator.text(
-        "Transaction ID: ${widget.transaction.id}",
-        styles: const PosStyles(align: PosAlign.left),
-      );
-      bytes += generator.text(
-        "Date: ${widget.transaction.transactionDate}",
-        styles: const PosStyles(align: PosAlign.left),
-      );
-      bytes += generator.text(
-        "--------------------------------",
-        styles: const PosStyles(align: PosAlign.center),
-      );
-
-      for (var item in widget.transactionItems) {
-        bytes += generator.text(
-          "${item.productName} x ${item.quantity}",
-          styles: const PosStyles(align: PosAlign.left),
-        );
-        bytes += generator.text(
-          formatToIDR(_getItemTotal(item)),
-          styles: const PosStyles(align: PosAlign.right),
-        );
-      }
-      bytes += generator.text(
-        "--------------------------------",
-        styles: const PosStyles(align: PosAlign.center),
-      );
-      bytes += generator.text(
-        "Subtotal: ${formatToIDR(widget.transaction.totalAmount)}",
-        styles: const PosStyles(align: PosAlign.right),
-      );
-      bytes += generator.text(
-        "Discount: ${formatToIDR(0)}",
-        styles: const PosStyles(align: PosAlign.right),
-      );
-      bytes += generator.text(
-        "Total: ${formatToIDR(widget.transaction.totalAmount)}",
-        styles: const PosStyles(
-          align: PosAlign.right,
-          bold: true,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
-        ),
-      );
-      bytes += generator.text(
-        "Cash Received: ${formatToIDR(widget.cashReceived)}",
-        styles: const PosStyles(align: PosAlign.right),
-      );
-      bytes += generator.text(
-        "Change: ${formatToIDR(widget.changeGiven)}",
-        styles: const PosStyles(align: PosAlign.right),
-      );
-      bytes += generator.text(
-        "--------------------------------",
-        styles: const PosStyles(align: PosAlign.center),
-      );
-      bytes += generator.text(
-        "Thank You!",
-        styles: const PosStyles(align: PosAlign.center),
-      );
-      bytes += generator.feed(4);
-      bytes += generator.cut();
-
-      await BluetoothPrintPlus.write(Uint8List.fromList(bytes));
-    } else if (_selectedPrinterType == 'System Printer') {
-      // Generate PDF for system printer
-      final pdf = pw.Document();
-
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          build: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Center(
-                  child: pw.Text(
-                    "PoSHIT Store",
-                    style: pw.TextStyle(
-                      fontSize: 24,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                ),
-                pw.SizedBox(height: 20),
-                pw.Text("Transaction ID: ${widget.transaction.id}"),
-                pw.Text("Date: ${widget.transaction.transactionDate}"),
-                pw.Divider(),
-                pw.Text(
-                  "Items:",
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                ),
-                ...widget.transactionItems.map(
-                  (item) => pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text("${item.productName} x ${item.quantity}"),
-                      pw.Text(formatToIDR(_getItemTotal(item))),
-                    ],
-                  ),
-                ),
-                pw.Divider(),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text("Subtotal:"),
-                    pw.Text(formatToIDR(widget.transaction.totalAmount)),
-                  ],
-                ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [pw.Text("Discount:"), pw.Text(formatToIDR(0))],
-                ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      "Total:",
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                    ),
-                    pw.Text(
-                      formatToIDR(widget.transaction.totalAmount),
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                    ),
-                  ],
-                ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text("Cash Received:"),
-                    pw.Text(formatToIDR(widget.cashReceived)),
-                  ],
-                ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text("Change:"),
-                    pw.Text(formatToIDR(widget.changeGiven)),
-                  ],
-                ),
-                pw.SizedBox(height: 20),
-                pw.Center(child: pw.Text("Thank You!")),
-              ],
-            );
-          },
-        ),
-      );
-
-      await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+      return;
     }
+
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> bytes = [];
+
+    bytes += generator.text(
+      _businessName,
+      styles: const PosStyles(
+        align: PosAlign.center,
+        bold: true,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+      ),
+    );
+    bytes += generator.text(
+      "--------------------------------",
+      styles: const PosStyles(align: PosAlign.center),
+    );
+    bytes += generator.text(
+      "Transaction ID: ${widget.transaction.id}",
+      styles: const PosStyles(align: PosAlign.left),
+    );
+    bytes += generator.text(
+      "Date: ${widget.transaction.transactionDate}",
+      styles: const PosStyles(align: PosAlign.left),
+    );
+    bytes += generator.text(
+      "--------------------------------",
+      styles: const PosStyles(align: PosAlign.center),
+    );
+
+    for (var item in widget.transactionItems) {
+      bytes += generator.text(
+        "${item.productName} x ${item.quantity}",
+        styles: const PosStyles(align: PosAlign.left),
+      );
+      bytes += generator.text(
+        formatToIDR(_getItemTotal(item)),
+        styles: const PosStyles(align: PosAlign.right),
+      );
+    }
+    bytes += generator.text(
+      "--------------------------------",
+      styles: const PosStyles(align: PosAlign.center),
+    );
+    bytes += generator.text(
+      "Subtotal: ${formatToIDR(widget.transaction.totalAmount)}",
+      styles: const PosStyles(align: PosAlign.right),
+    );
+    bytes += generator.text(
+      "Discount: ${formatToIDR(0)}",
+      styles: const PosStyles(align: PosAlign.right),
+    );
+    bytes += generator.text(
+      "Total: ${formatToIDR(widget.transaction.totalAmount)}",
+      styles: const PosStyles(
+        align: PosAlign.right,
+        bold: true,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+      ),
+    );
+    bytes += generator.text(
+      "Cash Received: ${formatToIDR(widget.cashReceived)}",
+      styles: const PosStyles(align: PosAlign.right),
+    );
+    bytes += generator.text(
+      "Change: ${formatToIDR(widget.changeGiven)}",
+      styles: const PosStyles(align: PosAlign.right),
+    );
+    bytes += generator.text(
+      "--------------------------------",
+      styles: const PosStyles(align: PosAlign.center),
+    );
+    bytes += generator.text(
+      'Thank you!',
+      styles: const PosStyles(align: PosAlign.center),
+    );
+    bytes += generator.feed(4);
+    bytes += generator.cut();
+
+    await BluetoothPrintPlus.write(Uint8List.fromList(bytes));
   }
 
   Future<void> _generateAndSavePdf() async {
@@ -329,7 +260,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
             children: [
               pw.Center(
                 child: pw.Text(
-                  "PoSHIT Store",
+                  'My Store',
                   style: pw.TextStyle(
                     fontSize: 24,
                     fontWeight: pw.FontWeight.bold,
@@ -396,7 +327,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                 ],
               ),
               pw.SizedBox(height: 20),
-              pw.Center(child: pw.Text("Thank You!")),
+              pw.Center(child: pw.Text('Thank you!')),
             ],
           );
         },
@@ -413,6 +344,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
         directory = await getDownloadsDirectory();
       }
       if (directory == null) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not access downloads directory.'),
@@ -424,10 +356,12 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
         '${directory.path}/receipt_${widget.transaction.id}.pdf',
       );
       await file.writeAsBytes(await pdf.save());
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Receipt saved to ${directory!.path}')),
+        SnackBar(content: Text('Receipt saved to ${directory.path}')),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error saving PDF: $e')));
@@ -442,6 +376,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
         leading: IconButton(
           icon: const Icon(Icons.done),
           onPressed: () {
+            if (!mounted) return;
             Navigator.of(context).popUntil(
               (route) => route.isFirst,
             ); // Go back to main sales screen
@@ -463,9 +398,9 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                   children: [
                     Center(
                       child: Text(
-                        "PoSHIT Store",
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        'My Store',
+                        style: Theme.of(context).textTheme.headlineSmall!
+                            .copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
                     const Divider(),
@@ -476,24 +411,22 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                       "Items:",
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    ...widget.transactionItems
-                        .map(
-                          (item) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    "${item.productName} x ${item.quantity}",
-                                  ),
-                                ),
-                                Text(formatToIDR(_getItemTotal(item))),
-                              ],
+                    ...widget.transactionItems.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                "${item.productName} x ${item.quantity}",
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
+                            Text(formatToIDR(_getItemTotal(item))),
+                          ],
+                        ),
+                      ),
+                    ),
                     const Divider(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -540,85 +473,27 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    const Center(child: Text("Thank You!")),
+                    Center(child: Text('Thank you!')),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            // Printer Type Selection
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Select Printer Type',
-              ),
-              value: _selectedPrinterType,
-              items: const [
-                DropdownMenuItem(
-                  value: 'Bluetooth',
-                  child: Text('Bluetooth Printer'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ElevatedButton(
+                  onPressed: _connected ? _disconnect : _connect,
+                  child: Text(_connected ? 'Disconnect' : 'Connect'),
                 ),
-                DropdownMenuItem(
-                  value: 'System Printer',
-                  child: Text('System Printer (USB/Wired)'),
+                ElevatedButton(
+                  onPressed: _connected
+                      ? _printReceipt
+                      : null, // Only enable if connected for Bluetooth
+                  child: const Text('Print'),
                 ),
               ],
-              onChanged: (type) {
-                if (type != null) {
-                  setState(() {
-                    _selectedPrinterType = type;
-                  });
-                  _savePrinterType(type); // Save the selected type
-                }
-              },
             ),
-            const SizedBox(height: 20), // Add some spacing
-            // Bluetooth Printer Selection (only visible if Bluetooth is selected)
-            if (_selectedPrinterType == 'Bluetooth') ...[
-              DropdownButtonFormField<BluetoothDevice>(
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Select Bluetooth Printer',
-                ),
-                value: _device,
-                items: _devices
-                    .map(
-                      (device) => DropdownMenuItem(
-                        value: device,
-                        child: Text(device.name ?? "Unknown Device"),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (device) {
-                  setState(() {
-                    _device = device;
-                  });
-                },
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton(
-                    onPressed: _connected ? _disconnect : _connect,
-                    child: Text(_connected ? 'Disconnect' : 'Connect'),
-                  ),
-                  ElevatedButton(
-                    onPressed: _connected
-                        ? _printReceipt
-                        : null, // Only enable if connected for Bluetooth
-                    child: const Text('Print'),
-                  ),
-                ],
-              ),
-            ] else if (_selectedPrinterType == 'System Printer') ...[
-              // For System Printer, the print button is always enabled
-              ElevatedButton(
-                onPressed: _printReceipt,
-                child: const Text('Print'),
-              ),
-            ],
-            const SizedBox(height: 20), // Add some spacing
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: _generateAndSavePdf,

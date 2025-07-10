@@ -1,4 +1,3 @@
-import 'package:sqflite/sqflite.dart';
 import 'package:poshit/database_helper.dart';
 import 'package:poshit/models/user.dart';
 

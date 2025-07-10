@@ -6,6 +6,8 @@ import 'package:poshit/services/product_service.dart';
 import 'package:poshit/services/transaction_service.dart';
 import 'package:poshit/utils/currency_formatter.dart';
 import 'package:poshit/screens/receipt_preview_screen.dart';
+import 'package:poshit/services/settings_service.dart';
+
 
 class NewTransactionScreen extends StatefulWidget {
   const NewTransactionScreen({super.key});
@@ -17,29 +19,56 @@ class NewTransactionScreen extends StatefulWidget {
 class _NewTransactionScreenState extends State<NewTransactionScreen> {
   final ProductService _productService = ProductService();
   final TransactionService _transactionService = TransactionService();
-  List<Product> _availableProducts = [];
+  final SettingsService _settingsService = SettingsService();
+  
+  List<Product> _allProducts = [];
+  List<Product> _filteredProducts = [];
   final Map<Product, int> _cart = {};
   final TextEditingController _cashReceivedController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   double _changeAmount = 0.0;
+
+  bool _useInventoryTracking = true;
+  bool _useSkuField = true;
 
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    _loadSettingsAndProducts();
     _cashReceivedController.addListener(_onCashReceivedChanged);
+    _searchController.addListener(_filterProducts);
+  }
+
+  Future<void> _loadSettingsAndProducts() async {
+    _useInventoryTracking = await _settingsService.getUseInventoryTracking();
+    _useSkuField = await _settingsService.getUseSkuField();
+    setState(() {});
+    _loadProducts();
   }
 
   @override
   void dispose() {
     _cashReceivedController.removeListener(_onCashReceivedChanged);
     _cashReceivedController.dispose();
+    _searchController.removeListener(_filterProducts);
+    _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _loadProducts() async {
     final products = await _productService.getProducts();
     setState(() {
-      _availableProducts = products;
+      _allProducts = products;
+      _filterProducts(); // Initialize filtered products
+    });
+  }
+
+  void _filterProducts() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredProducts = _allProducts
+          .where((product) => product.name.toLowerCase().contains(query))
+          .toList();
     });
   }
 
@@ -82,9 +111,11 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
 
   Future<void> _completeTransaction() async {
     if (_cart.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cart is empty. Add some products.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cart is empty. Add some products.')),
+        );
+      }
       return;
     }
 
@@ -93,11 +124,13 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
         double.tryParse(_cashReceivedController.text) ?? 0.0;
 
     if (amountReceived < totalAmount) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cash received is less than total amount.'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cash received is less than total amount.'),
+          ),
+        );
+      }
       return;
     }
 
@@ -126,9 +159,11 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
         transaction,
         items,
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Transaction completed successfully!')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaction completed successfully!')),
+        );
+      }
       // Create a list of TransactionItem objects with product names for the receipt
       final List<TransactionItem> receiptItems = _cart.entries.map((entry) {
         return TransactionItem(
@@ -149,118 +184,331 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
         _changeAmount = 0.0;
       });
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ReceiptPreviewScreen(
-            transaction: transaction.copyWith(id: transactionId), // Pass the transaction with its new ID
-            transactionItems: receiptItems,
-            cashReceived: amountReceived,
-            changeGiven: _changeAmount,
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ReceiptPreviewScreen(
+              transaction: transaction.copyWith(id: transactionId), // Pass the transaction with its new ID
+              transactionItems: receiptItems,
+              cashReceived: amountReceived,
+              changeGiven: _changeAmount,
+            ),
           ),
-        ),
-      );
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Transaction failed: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Transaction failed: $e')));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true, // Added this line
       appBar: AppBar(title: const Text('New Transaction')),
-      body: Column(
+      body: OrientationBuilder(
+        builder: (context, orientation) {
+          final isPortrait = orientation == Orientation.portrait;
+          return Flex(
+            direction: isPortrait ? Axis.vertical : Axis.horizontal,
+            children: [
+              _ProductListPane(
+                isPortrait: isPortrait,
+                searchController: _searchController,
+                filteredProducts: _filteredProducts,
+                addToCart: _addToCart,
+                formatToIDR: formatToIDR,
+                useInventoryTracking: _useInventoryTracking,
+                useSkuField: _useSkuField,
+              ),
+              _CartAndTransactionDetailsPane(
+                isPortrait: isPortrait,
+                cart: _cart,
+                clearCart: () {
+                  setState(() {
+                    _cart.clear();
+                    _cashReceivedController.clear();
+                    _changeAmount = 0.0;
+                  });
+                },
+                removeFromCart: _removeFromCart,
+                addToCart: _addToCart,
+                calculateTotal: _calculateTotal,
+                cashReceivedController: _cashReceivedController,
+                changeAmount: _changeAmount,
+                completeTransaction: _completeTransaction,
+                formatToIDR: formatToIDR,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ProductListPane extends StatelessWidget {
+  const _ProductListPane({
+    required this.isPortrait,
+    required this.searchController,
+    required this.filteredProducts,
+    required this.addToCart,
+    required this.formatToIDR,
+    required this.useInventoryTracking,
+    required this.useSkuField,
+  });
+
+  final bool isPortrait;
+  final TextEditingController searchController;
+  final List<Product> filteredProducts;
+  final Function(Product) addToCart;
+  final Function(double) formatToIDR;
+  final bool useInventoryTracking;
+  final bool useSkuField;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: isPortrait ? 1 : 3,
+      child: Column(
         children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: _availableProducts.length,
-              itemBuilder: (context, index) {
-                final product = _availableProducts[index];
-                return Card(
-                  margin: const EdgeInsets.all(8.0),
-                  child: ListTile(
-                    title: Text(product.name),
-                    subtitle: Text(formatToIDR(product.price)),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.add_shopping_cart),
-                      onPressed: () => _addToCart(product),
-                    ),
-                  ),
-                );
-              },
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: TextField(
+              controller: searchController,
+              decoration: const InputDecoration(
+                labelText: 'Search Products',
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+                labelStyle: TextStyle(fontSize: 14),
+              ),
             ),
           ),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: filteredProducts.isEmpty
+                ? const Center(child: Text('No products found.'))
+                : GridView.builder(
+                    padding: const EdgeInsets.all(8.0),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: (MediaQuery.of(context).size.width ~/
+                              (isPortrait ? 150 : 200))
+                          .toInt()
+                          .clamp(1, 5),
+                      crossAxisSpacing: 8.0,
+                      mainAxisSpacing: 8.0,
+                      childAspectRatio: isPortrait ? 1.0 : 0.8,
+                    ),
+                    itemCount: filteredProducts.length,
+                    itemBuilder: (context, index) {
+                      final product = filteredProducts[index];
+                      return Card(
+                        elevation: 2.0,
+                        child: InkWell(
+                          onTap: () => addToCart(product),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.fastfood, size: 48.0),
+                                Text(
+                                  product.name,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${formatToIDR(product.price)} | Stock: ${product.stockQuantity}' +
+                                      (product.sku != null ? ' | SKU: ${product.sku}' : ''),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CartAndTransactionDetailsPane extends StatelessWidget {
+  const _CartAndTransactionDetailsPane({
+    required this.isPortrait,
+    required this.cart,
+    required this.clearCart,
+    required this.removeFromCart,
+    required this.addToCart,
+    required this.calculateTotal,
+    required this.cashReceivedController,
+    required this.changeAmount,
+    required this.completeTransaction,
+    required this.formatToIDR,
+  });
+
+  final bool isPortrait;
+  final Map<Product, int> cart;
+  final VoidCallback clearCart;
+  final Function(Product) removeFromCart;
+  final Function(Product) addToCart;
+  final Function() calculateTotal;
+  final TextEditingController cashReceivedController;
+  final double changeAmount;
+  final VoidCallback completeTransaction;
+  final Function(double) formatToIDR;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: isPortrait ? 2 : 2,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   'Cart:',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                if (_cart.isEmpty)
-                  const Text('No items in cart')
-                else
-                  ..._cart.entries
-                      .map(
-                        (entry) => Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('${entry.key.name} x ${entry.value}'),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                  onPressed: () => _removeFromCart(entry.key),
-                                ),
-                                Text(
-                                  formatToIDR(entry.key.price * entry.value),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      )
-                      .toList(),
-                const Divider(),
-                Text(
-                  'Total: ${formatToIDR(_calculateTotal())}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _cashReceivedController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Cash Received',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Change: ${formatToIDR(_changeAmount)}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: _completeTransaction,
-                  child: const Text('Complete Transaction'),
+                ElevatedButton.icon(
+                  onPressed: clearCart,
+                  icon: const Icon(Icons.clear_all),
+                  label: const Text('Clear Cart'),
                 ),
               ],
             ),
-          ),
-        ],
+            Expanded( // Added Expanded here
+              child: cart.isEmpty
+                  ? const Center(child: Text('No items in cart'))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: cart.length,
+                      itemBuilder: (context, index) {
+                        final product = cart.keys.elementAt(index);
+                        final quantity = cart[product]!;
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        product.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text('${formatToIDR(product.price)} x $quantity'),
+                                    ],
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 3,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerRight,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.remove_circle, size: 18),
+                                          onPressed: () => removeFromCart(product),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                        ),
+                                        Text('$quantity', style: const TextStyle(fontSize: 12)),
+                                        IconButton(
+                                          icon: const Icon(Icons.add_circle, size: 18),
+                                          onPressed: () => addToCart(product),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete, size: 18),
+                                          onPressed: () => removeFromCart(product),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            const Divider(),
+            Text(
+              'Total: ${formatToIDR(calculateTotal())}',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 5),
+            TextField(
+              controller: cashReceivedController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Cash Received',
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+                labelStyle: TextStyle(fontSize: 14),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Change: ${formatToIDR(changeAmount)}',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(height: 5),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: completeTransaction,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                ),
+                child: const Text(
+                  'Complete Transaction',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

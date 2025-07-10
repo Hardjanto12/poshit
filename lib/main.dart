@@ -5,15 +5,8 @@ import 'package:poshit/screens/product_list_screen.dart';
 import 'package:poshit/screens/transaction_list_screen.dart';
 import 'package:poshit/screens/new_transaction_screen.dart';
 import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:poshit/screens/product_list_screen.dart';
-import 'package:poshit/screens/transaction_list_screen.dart';
-import 'package:poshit/screens/new_transaction_screen.dart';
 import 'package:poshit/screens/reporting_dashboard_screen.dart';
-// Remove the FFI import and initialization, as it causes errors if the package is not available.
-// The default sqflite package works on mobile and web, and FFI is only needed for desktop with extra setup.
-// If you want to support desktop, add sqflite_common_ffi to your dependencies and uncomment the following lines:
-
+import 'package:poshit/screens/settings_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() async {
@@ -27,7 +20,6 @@ void main() async {
   }
 
   await DatabaseHelper().database; // Initialize the database
-  print("Database initialized successfully.");
   runApp(const MyApp());
 }
 
@@ -107,6 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (users.isNotEmpty) {
       _showMessage('Login successful!');
       // Navigate to home screen
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -217,6 +210,18 @@ class HomeScreen extends StatelessWidget {
                 );
               },
               child: const Text('View Reports'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsScreen(),
+                  ),
+                );
+              },
+              child: const Text('Settings'),
             ),
           ],
         ),

@@ -47,6 +47,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
       lastDate: DateTime(2101),
     );
     if (picked != null) {
+      if (!mounted) return;
       setState(() {
         if (isStartDate) {
           _startDate = picked;
@@ -82,7 +83,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                   'Date Range: ${formatDate(_startDate!)} - ${formatDate(_endDate!)}',
                 ),
               pw.SizedBox(height: 20),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 headers: ['ID', 'Total Amount', 'Date'],
                 data: transactions.map((transaction) {
                   return [
@@ -188,6 +189,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                 .getTransactionItems(
                                   transaction.id!,
                                 ); // Fetch items
+                            if (!mounted) return;
                             Navigator.push(
                               context,
                               MaterialPageRoute(
