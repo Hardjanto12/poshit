@@ -36,6 +36,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _businessNameController = TextEditingController();
     _receiptFooterController = TextEditingController();
+
+    // Add listeners to trigger state updates when text changes
+    _businessNameController.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _receiptFooterController.addListener(() {
+      if (mounted) setState(() {});
+    });
+
     _loadSettings();
 
     bluetoothPrinter.scanResults.listen((devices) {

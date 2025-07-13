@@ -4,6 +4,7 @@ import 'package:poshit/models/transaction.dart';
 import 'package:poshit/models/transaction_item.dart';
 import 'package:poshit/services/product_service.dart';
 import 'package:poshit/services/transaction_service.dart';
+import 'package:poshit/services/user_session_service.dart';
 import 'package:poshit/utils/currency_formatter.dart';
 import 'package:poshit/screens/receipt_preview_screen.dart';
 import 'package:poshit/services/settings_service.dart';
@@ -19,6 +20,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   final ProductService _productService = ProductService();
   final TransactionService _transactionService = TransactionService();
   final SettingsService _settingsService = SettingsService();
+  final UserSessionService _userSessionService = UserSessionService();
 
   List<Product> _allProducts = [];
   List<Product> _filteredProducts = [];
@@ -118,6 +120,19 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
       return;
     }
 
+    final userId = _userSessionService.currentUserId;
+    if (userId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User session expired. Please login again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     final double totalAmount = _calculateTotal();
     final double amountReceived =
         double.tryParse(_cashReceivedController.text) ?? 0.0;
@@ -134,6 +149,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     }
 
     final transaction = Transaction(
+      userId: userId,
       totalAmount: totalAmount,
       amountReceived: amountReceived,
       change: _changeAmount,

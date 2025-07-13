@@ -20,6 +20,7 @@ void main() {
   test('Product model toMap and fromMap', () {
     final product = Product(
       id: 1,
+      userId: 1,
       name: 'Test',
       price: 100.0,
       sku: 'SKU1',

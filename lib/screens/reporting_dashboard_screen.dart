@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:poshit/database_helper.dart';
+import 'package:poshit/services/transaction_service.dart';
 import 'package:poshit/utils/currency_formatter.dart';
 import 'package:poshit/screens/transaction_list_screen.dart';
 
@@ -12,7 +12,7 @@ class ReportingDashboardScreen extends StatefulWidget {
 }
 
 class _ReportingDashboardScreenState extends State<ReportingDashboardScreen> {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final TransactionService _transactionService = TransactionService();
   late Future<Map<String, dynamic>> _todaySummaryFuture;
   late Future<List<Map<String, dynamic>>> _topProductsFuture;
 
@@ -23,8 +23,8 @@ class _ReportingDashboardScreenState extends State<ReportingDashboardScreen> {
   }
 
   void _loadReportData() {
-    _todaySummaryFuture = _dbHelper.getTodaySummary();
-    _topProductsFuture = _dbHelper.getTopSellingProducts();
+    _todaySummaryFuture = _transactionService.getTodaySummary();
+    _topProductsFuture = _transactionService.getTopSellingProducts();
   }
 
   @override

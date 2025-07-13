@@ -21,6 +21,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   @override
   void initState() {
     super.initState();
+    _productsFuture = _productService.getProducts(); // Initialize immediately
     _loadSettings();
   }
 
@@ -28,7 +29,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
     _useInventoryTracking = await _settingsService.getUseInventoryTracking();
     _useSkuField = await _settingsService.getUseSkuField();
     setState(() {});
-    _refreshProducts();
   }
 
   void _refreshProducts() {

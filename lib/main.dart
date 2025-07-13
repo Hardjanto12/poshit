@@ -7,6 +7,8 @@ import 'package:poshit/screens/new_transaction_screen.dart';
 import 'dart:io' show Platform;
 import 'package:poshit/screens/reporting_dashboard_screen.dart';
 import 'package:poshit/screens/settings_screen.dart';
+import 'package:poshit/screens/login_screen.dart';
+import 'package:poshit/services/user_session_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() async {
@@ -20,11 +22,18 @@ void main() async {
   }
 
   await DatabaseHelper().database; // Initialize the database
-  runApp(const MyApp());
+
+  // Initialize user session service
+  final userSessionService = UserSessionService();
+  final isLoggedIn = await userSessionService.initialize();
+
+  runApp(MyApp(isLoggedIn: isLoggedIn));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isLoggedIn;
+
+  const MyApp({super.key, required this.isLoggedIn});
 
   @override
   Widget build(BuildContext context) {
@@ -34,119 +43,8 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: isLoggedIn ? const HomeScreen() : const LoginScreen(),
       debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
-
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final DatabaseHelper _dbHelper = DatabaseHelper();
-
-  Future<void> _register() async {
-    final String username = _usernameController.text.trim();
-    final String password = _passwordController.text.trim();
-    final String name =
-        username; // For simplicity, using username as name for now
-
-    if (username.isEmpty || password.isEmpty) {
-      _showMessage('Username and password cannot be empty.');
-      return;
-    }
-
-    final User newUser = User(
-      name: name,
-      username: username,
-      password: password, // In a real app, hash this password!
-      dateCreated: DateTime.now().toIso8601String(),
-      dateUpdated: DateTime.now().toIso8601String(),
-    );
-
-    try {
-      final db = await _dbHelper.database;
-      await db.insert('users', newUser.toMap());
-      _showMessage('Registration successful!');
-    } catch (e) {
-      _showMessage('Registration failed: User might already exist.');
-    }
-  }
-
-  Future<void> _login() async {
-    final String username = _usernameController.text.trim();
-    final String password = _passwordController.text.trim();
-
-    if (username.isEmpty || password.isEmpty) {
-      _showMessage('Username and password cannot be empty.');
-      return;
-    }
-
-    final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> users = await db.query(
-      'users',
-      where: 'username = ? AND password = ?',
-      whereArgs: [username, password], // Again, hash comparison in real app
-    );
-
-    if (users.isNotEmpty) {
-      _showMessage('Login successful!');
-      // Navigate to home screen
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
-    } else {
-      _showMessage('Invalid username or password.');
-    }
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('PoSHIT Login')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(
-                labelText: 'Username',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16.0),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Password',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 24.0),
-            ElevatedButton(onPressed: _login, child: const Text('Login')),
-            const SizedBox(height: 16.0),
-            TextButton(onPressed: _register, child: const Text('Register')),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -156,8 +54,26 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userSessionService = UserSessionService();
+    final currentUser = userSessionService.currentUser;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Welcome to PoSHIT!')),
+      appBar: AppBar(
+        title: Text('Welcome ${currentUser?.name ?? "User"}!'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await userSessionService.logout();
+              if (context.mounted) {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              }
+            },
+          ),
+        ],
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -209,7 +125,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text('View Reports'),
+              child: const Text('Reports'),
             ),
             const SizedBox(height: 10),
             ElevatedButton(

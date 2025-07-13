@@ -1,70 +1,116 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:poshit/database_helper.dart';
+import 'package:poshit/services/user_session_service.dart';
+import 'package:sqflite/sqflite.dart';
 
 class SettingsService {
-  static const String _printerTypeKey = 'printerType';
-  static const String _lastConnectedPrinterAddressKey = 'lastConnectedPrinterAddress';
-  static const String _useInventoryTrackingKey = 'useInventoryTracking';
-  static const String _useSkuFieldKey = 'useSkuField';
-  static const String _businessNameKey = 'businessName';
-  static const String _receiptFooterKey = 'receiptFooter';
+  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final UserSessionService _userSessionService = UserSessionService();
+
+  Future<void> setPrinterType(String printerType) async {
+    await _setSetting('printer_type', printerType);
+  }
 
   Future<String> getPrinterType() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_printerTypeKey) ?? 'Bluetooth'; // Default to Bluetooth
+    return await _getSetting('printer_type', 'Bluetooth');
   }
 
-  Future<void> setPrinterType(String type) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_printerTypeKey, type);
-  }
-
-  Future<String?> getLastConnectedPrinterAddress() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_lastConnectedPrinterAddressKey);
-  }
-
-  Future<void> setLastConnectedPrinterAddress(String address) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_lastConnectedPrinterAddressKey, address);
-  }
-
-  Future<bool> getUseInventoryTracking() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_useInventoryTrackingKey) ?? true; // Default to true
-  }
-
-  Future<void> setUseInventoryTracking(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_useInventoryTrackingKey, value);
-  }
-
-  Future<bool> getUseSkuField() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_useSkuFieldKey) ?? true; // Default to true
-  }
-
-  Future<void> setUseSkuField(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_useSkuFieldKey, value);
+  Future<void> setBusinessName(String businessName) async {
+    await _setSetting('business_name', businessName);
   }
 
   Future<String> getBusinessName() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_businessNameKey) ?? 'My Store'; // Default to 'My Store'
+    return await _getSetting('business_name', 'My Business');
   }
 
-  Future<void> setBusinessName(String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_businessNameKey, name);
+  Future<void> setReceiptFooter(String receiptFooter) async {
+    await _setSetting('receipt_footer', receiptFooter);
   }
 
   Future<String> getReceiptFooter() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_receiptFooterKey) ?? 'Thank you!'; // Default to 'Thank you!'
+    return await _getSetting('receipt_footer', 'Thank you for your purchase!');
   }
 
-  Future<void> setReceiptFooter(String footer) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_receiptFooterKey, footer);
+  Future<void> setUseInventoryTracking(bool useInventoryTracking) async {
+    await _setSetting(
+      'use_inventory_tracking',
+      useInventoryTracking.toString(),
+    );
+  }
+
+  Future<bool> getUseInventoryTracking() async {
+    final value = await _getSetting('use_inventory_tracking', 'true');
+    return value.toLowerCase() == 'true';
+  }
+
+  Future<void> setUseSkuField(bool useSkuField) async {
+    await _setSetting('use_sku_field', useSkuField.toString());
+  }
+
+  Future<bool> getUseSkuField() async {
+    final value = await _getSetting('use_sku_field', 'true');
+    return value.toLowerCase() == 'true';
+  }
+
+  Future<void> setLastConnectedPrinterAddress(String address) async {
+    await _setSetting('last_connected_printer_address', address);
+  }
+
+  Future<String?> getLastConnectedPrinterAddress() async {
+    return await _getSettingNullable('last_connected_printer_address', null);
+  }
+
+  Future<void> _setSetting(String key, String value) async {
+    final userId = _userSessionService.currentUserId;
+    if (userId == null) return;
+
+    final db = await _dbHelper.database;
+    await db.insert('settings', {
+      'user_id': userId,
+      'key': key,
+      'value': value,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<String> _getSetting(String key, String defaultValue) async {
+    final userId = _userSessionService.currentUserId;
+    if (userId == null) return defaultValue;
+
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'settings',
+      where: 'user_id = ? AND key = ?',
+      whereArgs: [userId, key],
+    );
+
+    if (maps.isNotEmpty) {
+      return maps.first['value'] as String;
+    } else {
+      // Set default value if not found
+      await _setSetting(key, defaultValue);
+      return defaultValue;
+    }
+  }
+
+  Future<String?> _getSettingNullable(String key, String? defaultValue) async {
+    final userId = _userSessionService.currentUserId;
+    if (userId == null) return defaultValue;
+
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'settings',
+      where: 'user_id = ? AND key = ?',
+      whereArgs: [userId, key],
+    );
+
+    if (maps.isNotEmpty) {
+      return maps.first['value'] as String?;
+    } else {
+      // Set default value if not found and default is not null
+      if (defaultValue != null) {
+        await _setSetting(key, defaultValue);
+      }
+      return defaultValue;
+    }
   }
 }

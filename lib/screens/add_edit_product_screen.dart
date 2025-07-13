@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:poshit/models/product.dart';
 import 'package:poshit/services/product_service.dart';
 import 'package:poshit/services/settings_service.dart';
+import 'package:poshit/services/user_session_service.dart';
 
 class AddEditProductScreen extends StatefulWidget {
   final Product? product;
@@ -21,6 +22,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       TextEditingController();
 
   final ProductService _productService = ProductService();
+  final UserSessionService _userSessionService = UserSessionService();
   bool _useInventoryTracking = true;
   bool _useSkuField = true;
 
@@ -53,6 +55,17 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
   Future<void> _saveProduct() async {
     if (_formKey.currentState!.validate()) {
+      final userId = _userSessionService.currentUserId;
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User session expired. Please login again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       final String name = _nameController.text;
       final double price = double.parse(_priceController.text);
       final String? sku = _useSkuField && _skuController.text.isNotEmpty
@@ -65,6 +78,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       if (widget.product == null) {
         // Add new product
         final newProduct = Product(
+          userId: userId,
           name: name,
           price: price,
           sku: sku,
@@ -77,6 +91,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
         // Update existing product
         final updatedProduct = Product(
           id: widget.product!.id,
+          userId: userId,
           name: name,
           price: price,
           sku: sku,

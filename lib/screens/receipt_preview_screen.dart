@@ -55,10 +55,22 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload settings when dependencies change (e.g., when screen is opened)
+    _loadSettings();
+  }
+
   Future<void> _loadSettings() async {
-    _businessName = await _settingsService.getBusinessName();
-    _receiptFooter = await _settingsService.getReceiptFooter();
-    if (mounted) setState(() {});
+    final businessName = await _settingsService.getBusinessName();
+    final receiptFooter = await _settingsService.getReceiptFooter();
+    if (mounted) {
+      setState(() {
+        _businessName = businessName;
+        _receiptFooter = receiptFooter;
+      });
+    }
   }
 
   Future<void> _loadPrinterType() async {
@@ -148,11 +160,6 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
     return item.priceAtTransaction * item.quantity;
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-  }
-
   Future<void> _printReceipt() async {
     if (!_connected) {
       if (!mounted) return;
@@ -238,7 +245,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
       styles: const PosStyles(align: PosAlign.center),
     );
     bytes += generator.text(
-      'Thank you!',
+      _receiptFooter,
       styles: const PosStyles(align: PosAlign.center),
     );
     bytes += generator.feed(4);
@@ -259,7 +266,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
             children: [
               pw.Center(
                 child: pw.Text(
-                  'My Store',
+                  _businessName,
                   style: pw.TextStyle(
                     fontSize: 24,
                     fontWeight: pw.FontWeight.bold,
@@ -326,7 +333,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                 ],
               ),
               pw.SizedBox(height: 20),
-              pw.Center(child: pw.Text('Thank you!')),
+              pw.Center(child: pw.Text(_receiptFooter)),
             ],
           );
         },
@@ -397,7 +404,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                   children: [
                     Center(
                       child: Text(
-                        'My Store',
+                        _businessName,
                         style: Theme.of(context).textTheme.headlineSmall!
                             .copyWith(fontWeight: FontWeight.bold),
                       ),
@@ -472,7 +479,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    Center(child: Text('Thank you!')),
+                    Center(child: Text(_receiptFooter)),
                   ],
                 ),
               ),

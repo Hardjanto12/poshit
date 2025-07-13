@@ -26,16 +26,12 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   @override
   void initState() {
     super.initState();
-    _transactionsFuture = _transactionService.getTransactions().then(
-      (list) => list.cast<Transaction>(),
-    );
+    _transactionsFuture = _transactionService.getTransactions();
   }
 
   Future<void> _refreshTransactions() async {
     setState(() {
-      _transactionsFuture = _transactionService
-          .getTransactions(startDate: _startDate, endDate: _endDate)
-          .then((list) => list.cast<Transaction>());
+      _transactionsFuture = _transactionService.getTransactions();
     });
   }
 
