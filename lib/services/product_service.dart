@@ -1,18 +1,20 @@
 import 'package:poshit/database_helper.dart';
 import 'package:poshit/models/product.dart';
+import 'package:poshit/services/settings_service.dart';
 
 class ProductService {
   final DatabaseHelper _dbHelper = DatabaseHelper();
-
-  /// If [enableSku] is false, SKU will be ignored (not checked for uniqueness).
-  bool enableSku = true;
+  final SettingsService _settingsService = SettingsService();
 
   Future<int> insertProduct(Product product) async {
     final db = await _dbHelper.database;
     final productMap = Map<String, dynamic>.from(product.toMap());
 
+    // Check if SKU is enabled
+    final useSkuField = await _settingsService.getUseSkuField();
+
     // If SKU is disabled, set it to null before inserting
-    if (!enableSku) {
+    if (!useSkuField) {
       productMap['sku'] = null;
     } else {
       // If SKU is enabled, treat empty string as null to avoid UNIQUE constraint violation
@@ -38,8 +40,11 @@ class ProductService {
     final db = await _dbHelper.database;
     final productMap = Map<String, dynamic>.from(product.toMap());
 
+    // Check if SKU is enabled
+    final useSkuField = await _settingsService.getUseSkuField();
+
     // If SKU is disabled, set it to null before updating
-    if (!enableSku) {
+    if (!useSkuField) {
       productMap['sku'] = null;
     } else {
       // If SKU is enabled, treat empty string as null to avoid UNIQUE constraint violation
@@ -78,14 +83,16 @@ class ProductService {
 
   /// Returns true if SKU is unique or SKU is disabled or SKU is null/empty.
   Future<bool> isSkuUnique(String? sku, [int? excludeId]) async {
-    if (!enableSku || sku == null || sku.trim().isEmpty) {
+    final useSkuField = await _settingsService.getUseSkuField();
+
+    if (!useSkuField || sku == null || sku.trim().isEmpty) {
       // If SKU is disabled or not provided, always return true
       return true;
     }
     final db = await _dbHelper.database;
     final result = await db.query(
       'products',
-      where: 'sku = ?' + (excludeId != null ? ' AND id != ?' : ''),
+      where: 'sku = ?${excludeId != null ? ' AND id != ?' : ''}',
       whereArgs: excludeId != null ? [sku, excludeId] : [sku],
     );
     return result.isEmpty;

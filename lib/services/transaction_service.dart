@@ -3,11 +3,14 @@ import 'package:poshit/models/transaction.dart' as poshit_txn;
 import 'package:poshit/models/transaction_item.dart';
 import 'package:poshit/models/product.dart'; // Import Product model
 import 'package:poshit/services/product_service.dart'; // Import ProductService
+import 'package:poshit/services/settings_service.dart'; // Import SettingsService
 
 class TransactionService {
   final DatabaseHelper _dbHelper = DatabaseHelper();
   final ProductService _productService =
       ProductService(); // Instantiate ProductService
+  final SettingsService _settingsService =
+      SettingsService(); // Instantiate SettingsService
 
   Future<int> insertTransaction(
     poshit_txn.Transaction transaction,
@@ -16,16 +19,21 @@ class TransactionService {
     final db = await _dbHelper.database;
     int transactionId = await db.insert('transactions', transaction.toMap());
 
-    // By default, always decrease stock quantity (no settings check)
+    // Check if inventory tracking is enabled
+    final useInventoryTracking = await _settingsService
+        .getUseInventoryTracking();
+
     for (var item in items) {
       item.transactionId = transactionId;
       await db.insert('transaction_items', item.toMap());
 
-      // Decrease stock quantity
-      Product? product = await _productService.getProductById(item.productId);
-      if (product != null) {
-        product.stockQuantity -= item.quantity;
-        await _productService.updateProduct(product);
+      // Only decrease stock quantity if inventory tracking is enabled
+      if (useInventoryTracking) {
+        Product? product = await _productService.getProductById(item.productId);
+        if (product != null) {
+          product.stockQuantity -= item.quantity;
+          await _productService.updateProduct(product);
+        }
       }
     }
     return transactionId;

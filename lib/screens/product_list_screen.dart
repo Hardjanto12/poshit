@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:poshit/models/product.dart';
 import 'package:poshit/services/product_service.dart';
 import 'package:poshit/screens/add_edit_product_screen.dart';
-
+import 'package:poshit/services/settings_service.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -12,19 +12,26 @@ class ProductListScreen extends StatefulWidget {
 }
 
 class _ProductListScreenState extends State<ProductListScreen> {
-  late Future<List<Product>> _productsFuture;
   final ProductService _productService = ProductService();
-  
+  final SettingsService _settingsService = SettingsService();
+  late Future<List<Product>> _productsFuture;
+  bool _useInventoryTracking = true;
+  bool _useSkuField = true;
 
   @override
   void initState() {
     super.initState();
-    _productsFuture = _productService.getProducts();
+    _loadSettings();
   }
 
-  
+  Future<void> _loadSettings() async {
+    _useInventoryTracking = await _settingsService.getUseInventoryTracking();
+    _useSkuField = await _settingsService.getUseSkuField();
+    setState(() {});
+    _refreshProducts();
+  }
 
-  Future<void> _refreshProducts() async {
+  void _refreshProducts() {
     setState(() {
       _productsFuture = _productService.getProducts();
     });
@@ -34,9 +41,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Product List'),
+        title: const Text('Products'),
         actions: [
-          
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () async {
@@ -72,7 +78,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   child: ListTile(
                     title: Text(product.name),
                     subtitle: Text(
-                      'Price: Rp. ${product.price.toStringAsFixed(0)} | Stock: ${product.stockQuantity}${product.sku != null ? ' | SKU: ${product.sku}' : ''}',
+                      'Price: Rp. ${product.price.toStringAsFixed(0)}${_useInventoryTracking ? ' | Stock: ${product.stockQuantity}' : ''}${_useSkuField && product.sku != null ? ' | SKU: ${product.sku}' : ''}',
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,

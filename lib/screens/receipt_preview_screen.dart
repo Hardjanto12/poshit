@@ -13,7 +13,6 @@ import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:collection/collection.dart';
 import 'package:poshit/services/settings_service.dart';
-import 'package:printing/printing.dart';
 
 class ReceiptPreviewScreen extends StatefulWidget {
   final Transaction transaction;
@@ -479,6 +478,33 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
               ),
             ),
             const SizedBox(height: 20),
+            // Bluetooth Device Selection
+            if (_devices.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Select Bluetooth Printer:'),
+                  DropdownButton<BluetoothDevice>(
+                    value: _device,
+                    hint: const Text('Choose device'),
+                    isExpanded: true,
+                    items: _devices.map((device) {
+                      return DropdownMenuItem<BluetoothDevice>(
+                        value: device,
+                        child: Text(device.name ?? device.address ?? 'Unknown'),
+                      );
+                    }).toList(),
+                    onChanged: (device) {
+                      setState(() {
+                        _device = device;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            if (_devices.isEmpty)
+              const Text('No Bluetooth devices found. Please scan again.'),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [

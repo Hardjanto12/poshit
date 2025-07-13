@@ -8,7 +8,6 @@ import 'package:poshit/utils/currency_formatter.dart';
 import 'package:poshit/screens/receipt_preview_screen.dart';
 import 'package:poshit/services/settings_service.dart';
 
-
 class NewTransactionScreen extends StatefulWidget {
   const NewTransactionScreen({super.key});
 
@@ -20,7 +19,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   final ProductService _productService = ProductService();
   final TransactionService _transactionService = TransactionService();
   final SettingsService _settingsService = SettingsService();
-  
+
   List<Product> _allProducts = [];
   List<Product> _filteredProducts = [];
   final Map<Product, int> _cart = {};
@@ -189,7 +188,9 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => ReceiptPreviewScreen(
-              transaction: transaction.copyWith(id: transactionId), // Pass the transaction with its new ID
+              transaction: transaction.copyWith(
+                id: transactionId,
+              ), // Pass the transaction with its new ID
               transactionItems: receiptItems,
               cashReceived: amountReceived,
               changeGiven: _changeAmount,
@@ -285,8 +286,10 @@ class _ProductListPane extends StatelessWidget {
                 labelText: 'Search Products',
                 border: OutlineInputBorder(),
                 isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: 8.0,
+                  horizontal: 12.0,
+                ),
                 labelStyle: TextStyle(fontSize: 14),
               ),
             ),
@@ -297,10 +300,11 @@ class _ProductListPane extends StatelessWidget {
                 : GridView.builder(
                     padding: const EdgeInsets.all(8.0),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: (MediaQuery.of(context).size.width ~/
-                              (isPortrait ? 150 : 200))
-                          .toInt()
-                          .clamp(1, 5),
+                      crossAxisCount:
+                          (MediaQuery.of(context).size.width ~/
+                                  (isPortrait ? 150 : 200))
+                              .toInt()
+                              .clamp(1, 5),
                       crossAxisSpacing: 8.0,
                       mainAxisSpacing: 8.0,
                       childAspectRatio: isPortrait ? 1.0 : 0.8,
@@ -322,13 +326,13 @@ class _ProductListPane extends StatelessWidget {
                                   product.name,
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
-                                  '${formatToIDR(product.price)} | Stock: ${product.stockQuantity}' +
-                                      (product.sku != null ? ' | SKU: ${product.sku}' : ''),
+                                  '${formatToIDR(product.price)}${useInventoryTracking ? ' | Stock: ${product.stockQuantity}' : ''}${useSkuField && product.sku != null ? ' | SKU: ${product.sku}' : ''}',
                                 ),
                               ],
                             ),
@@ -392,7 +396,8 @@ class _CartAndTransactionDetailsPane extends StatelessWidget {
                 ),
               ],
             ),
-            Expanded( // Added Expanded here
+            Expanded(
+              // Added Expanded here
               child: cart.isEmpty
                   ? const Center(child: Text('No items in cart'))
                   : ListView.builder(
@@ -417,11 +422,14 @@ class _CartAndTransactionDetailsPane extends StatelessWidget {
                                       Text(
                                         product.name,
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.bold),
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                      Text('${formatToIDR(product.price)} x $quantity'),
+                                      Text(
+                                        '${formatToIDR(product.price)} x $quantity',
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -434,21 +442,35 @@ class _CartAndTransactionDetailsPane extends StatelessWidget {
                                       mainAxisAlignment: MainAxisAlignment.end,
                                       children: [
                                         IconButton(
-                                          icon: const Icon(Icons.remove_circle, size: 18),
-                                          onPressed: () => removeFromCart(product),
+                                          icon: const Icon(
+                                            Icons.remove_circle,
+                                            size: 18,
+                                          ),
+                                          onPressed: () =>
+                                              removeFromCart(product),
                                           padding: EdgeInsets.zero,
                                           constraints: const BoxConstraints(),
                                         ),
-                                        Text('$quantity', style: const TextStyle(fontSize: 12)),
+                                        Text(
+                                          '$quantity',
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
                                         IconButton(
-                                          icon: const Icon(Icons.add_circle, size: 18),
+                                          icon: const Icon(
+                                            Icons.add_circle,
+                                            size: 18,
+                                          ),
                                           onPressed: () => addToCart(product),
                                           padding: EdgeInsets.zero,
                                           constraints: const BoxConstraints(),
                                         ),
                                         IconButton(
-                                          icon: const Icon(Icons.delete, size: 18),
-                                          onPressed: () => removeFromCart(product),
+                                          icon: const Icon(
+                                            Icons.delete,
+                                            size: 18,
+                                          ),
+                                          onPressed: () =>
+                                              removeFromCart(product),
                                           padding: EdgeInsets.zero,
                                           constraints: const BoxConstraints(),
                                         ),
@@ -466,10 +488,7 @@ class _CartAndTransactionDetailsPane extends StatelessWidget {
             const Divider(),
             Text(
               'Total: ${formatToIDR(calculateTotal())}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 5),
             TextField(
@@ -479,8 +498,10 @@ class _CartAndTransactionDetailsPane extends StatelessWidget {
                 labelText: 'Cash Received',
                 border: OutlineInputBorder(),
                 isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: 8.0,
+                  horizontal: 12.0,
+                ),
                 labelStyle: TextStyle(fontSize: 14),
               ),
             ),

@@ -9,22 +9,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:poshit/main.dart';
+import 'dart:io' show Platform;
+import 'package:poshit/models/product.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+    // platform-specific code here
+  }
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  test('Product model toMap and fromMap', () {
+    final product = Product(
+      id: 1,
+      name: 'Test',
+      price: 100.0,
+      sku: 'SKU1',
+      stockQuantity: 10,
+      dateCreated: '2024-01-01',
+      dateUpdated: '2024-01-02',
+    );
+    final map = product.toMap();
+    final fromMap = Product.fromMap(map);
+    expect(fromMap.name, 'Test');
+    expect(fromMap.price, 100.0);
+    expect(fromMap.sku, 'SKU1');
+    expect(fromMap.stockQuantity, 10);
   });
 }
