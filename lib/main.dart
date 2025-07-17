@@ -49,87 +49,60 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+  final userSessionService = UserSessionService();
+
+  static const List<Widget> _pages = <Widget>[
+    NewTransactionScreen(), // left
+    ProductListScreen(), // center
+    TransactionListScreen(), // right
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final userSessionService = UserSessionService();
     final currentUser = userSessionService.currentUser;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Welcome ${currentUser?.name ?? "User"}!'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await userSessionService.logout();
-              if (context.mounted) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                );
-              }
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      appBar: AppBar(title: Text('Welcome ${currentUser?.name ?? "User"}!')),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
-            const Text('You are logged in!'),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProductListScreen(),
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.account_circle, size: 48, color: Colors.white),
+                  SizedBox(height: 8),
+                  Text(
+                    currentUser?.name ?? "User",
+                    style: TextStyle(color: Colors.white, fontSize: 20),
                   ),
-                );
-              },
-              child: const Text('Manage Products'),
+                ],
+              ),
             ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const NewTransactionScreen(),
-                  ),
-                );
-              },
-              child: const Text('New Transaction'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const TransactionListScreen(),
-                  ),
-                );
-              },
-              child: const Text('View Transactions'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ReportingDashboardScreen(),
-                  ),
-                );
-              },
-              child: const Text('Reports'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () {
+            ListTile(
+              leading: Icon(Icons.settings),
+              title: Text('Settings'),
+              onTap: () {
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -137,10 +110,68 @@ class HomeScreen extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text('Settings'),
+            ),
+            ListTile(
+              leading: Icon(Icons.group),
+              title: Text('User Management'),
+              onTap: () {
+                // TODO: Implement User Management screen navigation
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('User Management not implemented.')),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.logout),
+              title: Text('Logout'),
+              onTap: () async {
+                await userSessionService.logout();
+                if (context.mounted) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.help_outline),
+              title: Text('About/Help'),
+              onTap: () {
+                Navigator.pop(context);
+                showAboutDialog(
+                  context: context,
+                  applicationName: 'PoSHIT',
+                  applicationVersion: '1.0.0',
+                  applicationLegalese: '© 2024 PoSHIT',
+                  children: [Text('A simple POS system.')],
+                );
+              },
             ),
           ],
         ),
+      ),
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.add_shopping_cart),
+            label: 'New Transaction',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory),
+            label: 'Products',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.receipt_long),
+            label: 'Transactions',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        onTap: _onItemTapped,
       ),
     );
   }

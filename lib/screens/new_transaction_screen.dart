@@ -81,13 +81,13 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     });
   }
 
-  void _removeFromCart(Product product) {
+  void _removeFromCart(Product product, {bool removeAll = false}) {
     setState(() {
       if (_cart.containsKey(product)) {
-        if (_cart[product]! > 1) {
-          _cart.update(product, (value) => value - 1);
-        } else {
+        if (removeAll || _cart[product]! <= 1) {
           _cart.remove(product);
+        } else {
+          _cart.update(product, (value) => value - 1);
         }
       }
       _onCashReceivedChanged();
@@ -249,38 +249,105 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
       body: OrientationBuilder(
         builder: (context, orientation) {
           final isPortrait = orientation == Orientation.portrait;
-          return Flex(
-            direction: isPortrait ? Axis.vertical : Axis.horizontal,
-            children: [
-              _ProductListPane(
-                isPortrait: isPortrait,
-                searchController: _searchController,
-                filteredProducts: _filteredProducts,
-                addToCart: _addToCart,
-                formatToIDR: formatToIDR,
-                useInventoryTracking: _useInventoryTracking,
-                useSkuField: _useSkuField,
-              ),
-              _CartAndTransactionDetailsPane(
-                isPortrait: isPortrait,
-                cart: _cart,
-                clearCart: () {
-                  setState(() {
-                    _cart.clear();
-                    _cashReceivedController.clear();
-                    _changeAmount = 0.0;
-                  });
-                },
-                removeFromCart: _removeFromCart,
-                addToCart: _addToCart,
-                calculateTotal: _calculateTotal,
-                cashReceivedController: _cashReceivedController,
-                changeAmount: _changeAmount,
-                completeTransaction: _completeTransaction,
-                formatToIDR: formatToIDR,
-              ),
-            ],
-          );
+          if (isPortrait) {
+            return Stack(
+              children: [
+                // Product list takes the whole screen
+                Positioned.fill(
+                  child: _ProductListPane(
+                    isPortrait: isPortrait,
+                    searchController: _searchController,
+                    filteredProducts: _filteredProducts,
+                    addToCart: _addToCart,
+                    formatToIDR: formatToIDR,
+                    useInventoryTracking: _useInventoryTracking,
+                    useSkuField: _useSkuField,
+                  ),
+                ),
+                DraggableScrollableSheet(
+                  initialChildSize: 0.12,
+                  minChildSize: 0.08,
+                  maxChildSize: 0.7,
+                  builder: (context, scrollController) {
+                    return Material(
+                      elevation: 12,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(16),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 8,
+                              offset: Offset(0, -2),
+                            ),
+                          ],
+                        ),
+                        child: _CartAndTransactionDetailsPane(
+                          isPortrait: isPortrait,
+                          cart: _cart,
+                          clearCart: () {
+                            setState(() {
+                              _cart.clear();
+                              _cashReceivedController.clear();
+                              _changeAmount = 0.0;
+                            });
+                          },
+                          removeFromCart: _removeFromCart,
+                          addToCart: _addToCart,
+                          calculateTotal: _calculateTotal,
+                          cashReceivedController: _cashReceivedController,
+                          changeAmount: _changeAmount,
+                          completeTransaction: _completeTransaction,
+                          formatToIDR: formatToIDR,
+                          scrollController: scrollController,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            );
+          } else {
+            // Landscape: keep side-by-side layout
+            return Flex(
+              direction: Axis.horizontal,
+              children: [
+                _ProductListPane(
+                  isPortrait: isPortrait,
+                  searchController: _searchController,
+                  filteredProducts: _filteredProducts,
+                  addToCart: _addToCart,
+                  formatToIDR: formatToIDR,
+                  useInventoryTracking: _useInventoryTracking,
+                  useSkuField: _useSkuField,
+                ),
+                _CartAndTransactionDetailsPane(
+                  isPortrait: isPortrait,
+                  cart: _cart,
+                  clearCart: () {
+                    setState(() {
+                      _cart.clear();
+                      _cashReceivedController.clear();
+                      _changeAmount = 0.0;
+                    });
+                  },
+                  removeFromCart: _removeFromCart,
+                  addToCart: _addToCart,
+                  calculateTotal: _calculateTotal,
+                  cashReceivedController: _cashReceivedController,
+                  changeAmount: _changeAmount,
+                  completeTransaction: _completeTransaction,
+                  formatToIDR: formatToIDR,
+                ),
+              ],
+            );
+          }
         },
       ),
     );
@@ -394,177 +461,186 @@ class _CartAndTransactionDetailsPane extends StatelessWidget {
     required this.changeAmount,
     required this.completeTransaction,
     required this.formatToIDR,
+    this.scrollController,
   });
 
   final bool isPortrait;
   final Map<Product, int> cart;
   final VoidCallback clearCart;
-  final Function(Product) removeFromCart;
+  final void Function(Product, {bool removeAll}) removeFromCart;
   final Function(Product) addToCart;
   final Function() calculateTotal;
   final TextEditingController cashReceivedController;
   final double changeAmount;
   final VoidCallback completeTransaction;
   final Function(double) formatToIDR;
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      flex: isPortrait ? 2 : 2,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final cartContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Cart:',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                ElevatedButton.icon(
-                  onPressed: clearCart,
-                  icon: const Icon(Icons.clear_all),
-                  label: const Text('Clear Cart'),
-                ),
-              ],
+            const Text(
+              'Cart:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            Expanded(
-              // Added Expanded here
-              child: cart.isEmpty
-                  ? const Center(child: Text('No items in cart'))
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: cart.length,
-                      itemBuilder: (context, index) {
-                        final product = cart.keys.elementAt(index);
-                        final quantity = cart[product]!;
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 4.0),
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Row(
+            ElevatedButton.icon(
+              onPressed: clearCart,
+              icon: const Icon(Icons.clear_all),
+              label: const Text('Clear Cart'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        cart.isEmpty
+            ? const Center(child: Text('No items in cart'))
+            : ListView.builder(
+                controller: scrollController,
+                shrinkWrap: true,
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: cart.length,
+                itemBuilder: (context, index) {
+                  final product = cart.keys.elementAt(index);
+                  final quantity = cart[product]!;
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        product.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                        '${formatToIDR(product.price)} x $quantity',
-                                      ),
-                                    ],
+                                Text(
+                                  product.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
                                   ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                Expanded(
-                                  flex: 3,
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.centerRight,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.end,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.remove_circle,
-                                            size: 18,
-                                          ),
-                                          onPressed: () =>
-                                              removeFromCart(product),
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                        ),
-                                        Text(
-                                          '$quantity',
-                                          style: const TextStyle(fontSize: 12),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.add_circle,
-                                            size: 18,
-                                          ),
-                                          onPressed: () => addToCart(product),
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            size: 18,
-                                          ),
-                                          onPressed: () =>
-                                              removeFromCart(product),
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                Text(
+                                  '${formatToIDR(product.price)} x $quantity',
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      },
+                          Expanded(
+                            flex: 3,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.remove_circle,
+                                      size: 18,
+                                    ),
+                                    onPressed: () => removeFromCart(product),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                  Text(
+                                    '$quantity',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.add_circle,
+                                      size: 18,
+                                    ),
+                                    onPressed: () => addToCart(product),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, size: 18),
+                                    onPressed: () => removeFromCart(
+                                      product,
+                                      removeAll: true,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-            ),
-            const Divider(),
-            Text(
-              'Total: ${formatToIDR(calculateTotal())}',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 5),
-            TextField(
-              controller: cashReceivedController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Cash Received',
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  vertical: 8.0,
-                  horizontal: 12.0,
-                ),
-                labelStyle: TextStyle(fontSize: 14),
+                  );
+                },
               ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              'Change: ${formatToIDR(changeAmount)}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
-            ),
-            const SizedBox(height: 5),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: completeTransaction,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                ),
-                child: const Text(
-                  'Complete Transaction',
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-            ),
-          ],
+        const Divider(),
+        Text(
+          'Total: ${formatToIDR(calculateTotal())}',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-      ),
+        const SizedBox(height: 5),
+        TextField(
+          controller: cashReceivedController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Cash Received',
+            border: OutlineInputBorder(),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              vertical: 8.0,
+              horizontal: 12.0,
+            ),
+            labelStyle: TextStyle(fontSize: 14),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          'Change: ${formatToIDR(changeAmount)}',
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.green,
+          ),
+        ),
+        const SizedBox(height: 5),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: completeTransaction,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 15),
+            ),
+            child: const Text(
+              'Complete Transaction',
+              style: TextStyle(fontSize: 18),
+            ),
+          ),
+        ),
+      ],
     );
+
+    if (isPortrait) {
+      // In portrait, do NOT wrap in Expanded, and make the whole thing scrollable
+      return Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: SingleChildScrollView(
+          controller: scrollController,
+          child: cartContent,
+        ),
+      );
+    } else {
+      // In landscape, keep the old Expanded layout
+      return Expanded(
+        flex: 2,
+        child: Padding(padding: const EdgeInsets.all(8.0), child: cartContent),
+      );
+    }
   }
 }

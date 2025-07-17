@@ -119,9 +119,13 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
   Future<void> _connect() async {
     if (_device == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No device selected')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No device selected'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
       return;
     }
     try {
@@ -130,14 +134,22 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
       ); // _device is checked for null above
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Connected to ${_device?.name}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Connected to ${_device?.name}'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to connect: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to connect: $e'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
     }
   }
 
@@ -145,14 +157,22 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
     try {
       await BluetoothPrintPlus.disconnect();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Disconnected')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Disconnected'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to disconnect: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to disconnect: $e'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
     }
   }
 
@@ -354,6 +374,8 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Could not access downloads directory.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(milliseconds: 2000),
           ),
         );
         return;
@@ -364,13 +386,21 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
       await file.writeAsBytes(await pdf.save());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Receipt saved to ${directory.path}')),
+        SnackBar(
+          content: Text('Receipt saved to ${directory.path}'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving PDF: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving PDF: $e'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
     }
   }
 
@@ -411,7 +441,9 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                     ),
                     const Divider(),
                     Text("Transaction ID: ${widget.transaction.id}"),
-                    Text("Date: ${widget.transaction.transactionDate}"),
+                    Text(
+                      "Date: ${formatDateTime(widget.transaction.transactionDate)}",
+                    ),
                     const Divider(),
                     Text(
                       "Items:",
