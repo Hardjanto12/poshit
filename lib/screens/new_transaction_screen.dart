@@ -8,6 +8,7 @@ import 'package:poshit/services/user_session_service.dart';
 import 'package:poshit/utils/currency_formatter.dart';
 import 'package:poshit/screens/receipt_preview_screen.dart';
 import 'package:poshit/services/settings_service.dart';
+// Removed: import 'package:fluttertoast/fluttertoast.dart';
 
 class NewTransactionScreen extends StatefulWidget {
   const NewTransactionScreen({super.key});
@@ -114,7 +115,11 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     if (_cart.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cart is empty. Add some products.')),
+          const SnackBar(
+            content: Text('Cart is empty. Add some products.'),
+            duration: Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
       return;
@@ -127,6 +132,8 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
           const SnackBar(
             content: Text('User session expired. Please login again.'),
             backgroundColor: Colors.red,
+            duration: Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -142,6 +149,8 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Cash received is less than total amount.'),
+            duration: Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -176,7 +185,11 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Transaction completed successfully!')),
+          const SnackBar(
+            content: Text('Transaction completed successfully!'),
+            duration: Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
       // Create a list of TransactionItem objects with product names for the receipt
@@ -216,9 +229,14 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Transaction failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Transaction failed: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }

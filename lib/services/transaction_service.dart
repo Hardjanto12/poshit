@@ -115,13 +115,28 @@ class TransactionService {
     final transaction = await getTransactionById(transactionId);
     if (transaction == null) return [];
 
-    final List<Map<String, dynamic>> maps = await db.query(
-      'transaction_items',
-      where: 'transaction_id = ?',
-      whereArgs: [transactionId],
+    // Join transaction_items with products to get product name
+    final List<Map<String, dynamic>> maps = await db.rawQuery(
+      '''
+      SELECT ti.*, p.name as product_name
+      FROM transaction_items ti
+      LEFT JOIN products p ON ti.product_id = p.id
+      WHERE ti.transaction_id = ?
+    ''',
+      [transactionId],
     );
+
     return List.generate(maps.length, (i) {
-      return TransactionItem.fromMap(maps[i]);
+      return TransactionItem(
+        id: maps[i]['id'],
+        transactionId: maps[i]['transaction_id'],
+        productId: maps[i]['product_id'],
+        quantity: maps[i]['quantity'],
+        priceAtTransaction: maps[i]['price_at_transaction'],
+        productName: maps[i]['product_name'],
+        dateCreated: maps[i]['date_created'],
+        dateUpdated: maps[i]['date_updated'],
+      );
     });
   }
 

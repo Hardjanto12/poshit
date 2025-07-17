@@ -3,6 +3,7 @@ import 'package:poshit/services/user_session_service.dart';
 import 'package:poshit/services/user_service.dart';
 import 'package:poshit/models/user.dart';
 import 'package:poshit/main.dart';
+// Removed: import 'package:fluttertoast/fluttertoast.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,7 +46,8 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Default admin account created: admin/admin123'),
-            duration: Duration(seconds: 5),
+            duration: Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -82,6 +84,8 @@ class _LoginScreenState extends State<LoginScreen> {
           const SnackBar(
             content: Text('Invalid username or password'),
             backgroundColor: Colors.red,
+            duration: Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -91,6 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
           SnackBar(
             content: Text('Login failed: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -121,6 +127,8 @@ class _LoginScreenState extends State<LoginScreen> {
             const SnackBar(
               content: Text('Username already exists'),
               backgroundColor: Colors.red,
+              duration: Duration(milliseconds: 2000),
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
@@ -155,6 +163,8 @@ class _LoginScreenState extends State<LoginScreen> {
           SnackBar(
             content: Text('Account creation failed: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
