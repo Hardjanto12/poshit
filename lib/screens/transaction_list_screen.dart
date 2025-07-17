@@ -58,6 +58,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   Future<void> _generateTransactionListPdf(
     List<Transaction> transactions,
   ) async {
+    // Sort transactions by ID ascending
+    final sortedTransactions = List<Transaction>.from(transactions)
+      ..sort((a, b) => (a.id ?? 0).compareTo(b.id ?? 0));
+
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -81,7 +85,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
               pw.SizedBox(height: 20),
               pw.TableHelper.fromTextArray(
                 headers: ['ID', 'Total Amount', 'Date'],
-                data: transactions.map((transaction) {
+                data: sortedTransactions.map((transaction) {
                   return [
                     transaction.id.toString(),
                     formatToIDR(transaction.totalAmount),

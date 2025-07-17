@@ -375,77 +375,83 @@ class _ProductListPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      flex: isPortrait ? 1 : 3,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            child: TextField(
-              controller: searchController,
-              decoration: const InputDecoration(
-                labelText: 'Search Products',
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(
-                  vertical: 8.0,
-                  horizontal: 12.0,
-                ),
-                labelStyle: TextStyle(fontSize: 14),
+    final columnWidget = Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+          child: TextField(
+            controller: searchController,
+            decoration: const InputDecoration(
+              labelText: 'Search Products',
+              border: OutlineInputBorder(),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(
+                vertical: 8.0,
+                horizontal: 12.0,
               ),
+              labelStyle: TextStyle(fontSize: 14),
             ),
           ),
-          Expanded(
-            child: filteredProducts.isEmpty
-                ? const Center(child: Text('No products found.'))
-                : GridView.builder(
-                    padding: const EdgeInsets.all(8.0),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount:
-                          (MediaQuery.of(context).size.width ~/
-                                  (isPortrait ? 150 : 200))
-                              .toInt()
-                              .clamp(1, 5),
-                      crossAxisSpacing: 8.0,
-                      mainAxisSpacing: 8.0,
-                      childAspectRatio: isPortrait ? 1.0 : 0.8,
-                    ),
-                    itemCount: filteredProducts.length,
-                    itemBuilder: (context, index) {
-                      final product = filteredProducts[index];
-                      return Card(
-                        elevation: 2.0,
-                        child: InkWell(
-                          onTap: () => addToCart(product),
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.fastfood, size: 48.0),
-                                Text(
-                                  product.name,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+        ),
+        Expanded(
+          child: filteredProducts.isEmpty
+              ? const Center(child: Text('No products found.'))
+              : GridView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount:
+                        (MediaQuery.of(context).size.width ~/
+                                (isPortrait ? 150 : 200))
+                            .toInt()
+                            .clamp(1, 5),
+                    crossAxisSpacing: 8.0,
+                    mainAxisSpacing: 8.0,
+                    childAspectRatio: isPortrait ? 1.0 : 0.8,
+                  ),
+                  itemCount: filteredProducts.length,
+                  itemBuilder: (context, index) {
+                    final product = filteredProducts[index];
+                    return Card(
+                      elevation: 2.0,
+                      child: InkWell(
+                        onTap: () => addToCart(product),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.fastfood, size: 48.0),
+                              Text(
+                                product.name,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                Text(
-                                  '${formatToIDR(product.price)}${useInventoryTracking ? ' | Stock: ${product.stockQuantity}' : ''}${useSkuField && product.sku != null ? ' | SKU: ${product.sku}' : ''}',
-                                ),
-                              ],
-                            ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '${formatToIDR(product.price)}${useInventoryTracking ? ' | Stock: ${product.stockQuantity}' : ''}${useSkuField && product.sku != null ? ' | SKU: ${product.sku}' : ''}',
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
+
+    if (isPortrait) {
+      return columnWidget;
+    } else {
+      return Expanded(
+        flex: 3,
+        child: columnWidget,
+      );
+    }
   }
 }
 
@@ -478,165 +484,298 @@ class _CartAndTransactionDetailsPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cartContent = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    if (isPortrait) {
+      // In portrait, use ListView as the direct child of DraggableScrollableSheet
+      return Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: ListView(
+          controller: scrollController,
           children: [
-            const Text(
-              'Cart:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Cart:',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                ElevatedButton.icon(
+                  onPressed: clearCart,
+                  icon: const Icon(Icons.clear_all),
+                  label: const Text('Clear Cart'),
+                ),
+              ],
             ),
-            ElevatedButton.icon(
-              onPressed: clearCart,
-              icon: const Icon(Icons.clear_all),
-              label: const Text('Clear Cart'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        cart.isEmpty
-            ? const Center(child: Text('No items in cart'))
-            : ListView.builder(
-                controller: scrollController,
-                shrinkWrap: true,
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: cart.length,
-                itemBuilder: (context, index) {
-                  final product = cart.keys.elementAt(index);
-                  final quantity = cart[product]!;
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 4),
+            if (cart.isEmpty)
+              const Center(child: Text('No items in cart'))
+            else ...[
+              for (final product in cart.keys)
+                Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                product.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '${formatToIDR(product.price)} x ${cart[product]}',
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                Text(
-                                  product.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.remove_circle,
+                                    size: 18,
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                  onPressed: () => removeFromCart(product),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
                                 ),
                                 Text(
-                                  '${formatToIDR(product.price)} x $quantity',
+                                  '${cart[product]}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.add_circle, size: 18),
+                                  onPressed: () => addToCart(product),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, size: 18),
+                                  onPressed: () =>
+                                      removeFromCart(product, removeAll: true),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
                                 ),
                               ],
                             ),
                           ),
-                          Expanded(
-                            flex: 3,
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerRight,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.remove_circle,
-                                      size: 18,
-                                    ),
-                                    onPressed: () => removeFromCart(product),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                  ),
-                                  Text(
-                                    '$quantity',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.add_circle,
-                                      size: 18,
-                                    ),
-                                    onPressed: () => addToCart(product),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, size: 18),
-                                    onPressed: () => removeFromCart(
-                                      product,
-                                      removeAll: true,
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  );
-                },
+                  ),
+                ),
+            ],
+            const Divider(),
+            Text(
+              'Total: ${formatToIDR(calculateTotal())}',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 5),
+            TextField(
+              controller: cashReceivedController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Cash Received',
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  vertical: 8.0,
+                  horizontal: 12.0,
+                ),
+                labelStyle: TextStyle(fontSize: 14),
               ),
-        const Divider(),
-        Text(
-          'Total: ${formatToIDR(calculateTotal())}',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 5),
-        TextField(
-          controller: cashReceivedController,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Cash Received',
-            border: OutlineInputBorder(),
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(
-              vertical: 8.0,
-              horizontal: 12.0,
             ),
-            labelStyle: TextStyle(fontSize: 14),
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          'Change: ${formatToIDR(changeAmount)}',
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.green,
-          ),
-        ),
-        const SizedBox(height: 5),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: completeTransaction,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 15),
+            const SizedBox(height: 5),
+            Text(
+              'Change: ${formatToIDR(changeAmount)}',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
             ),
-            child: const Text(
-              'Complete Transaction',
-              style: TextStyle(fontSize: 18),
+            const SizedBox(height: 5),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: completeTransaction,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                ),
+                child: const Text(
+                  'Complete Transaction',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
-    );
-
-    if (isPortrait) {
-      // In portrait, do NOT wrap in Expanded, and make the whole thing scrollable
-      return Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: SingleChildScrollView(
-          controller: scrollController,
-          child: cartContent,
+          ],
         ),
       );
     } else {
       // In landscape, keep the old Expanded layout
+      final cartContent = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Cart:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              ElevatedButton.icon(
+                onPressed: clearCart,
+                icon: const Icon(Icons.clear_all),
+                label: const Text('Clear Cart'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Expanded(
+            child: cart.isEmpty
+                ? const Center(child: Text('No items in cart'))
+                : ListView.builder(
+                    itemCount: cart.length,
+                    itemBuilder: (context, index) {
+                      final product = cart.keys.elementAt(index);
+                      final quantity = cart[product]!;
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      product.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      '${formatToIDR(product.price)} x $quantity',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                flex: 3,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.remove_circle,
+                                          size: 18,
+                                        ),
+                                        onPressed: () =>
+                                            removeFromCart(product),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                      ),
+                                      Text(
+                                        '$quantity',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.add_circle,
+                                          size: 18,
+                                        ),
+                                        onPressed: () => addToCart(product),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          size: 18,
+                                        ),
+                                        onPressed: () => removeFromCart(
+                                          product,
+                                          removeAll: true,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          const Divider(),
+          Text(
+            'Total: ${formatToIDR(calculateTotal())}',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 5),
+          TextField(
+            controller: cashReceivedController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Cash Received',
+              border: OutlineInputBorder(),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(
+                vertical: 8.0,
+                horizontal: 12.0,
+              ),
+              labelStyle: TextStyle(fontSize: 14),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            'Change: ${formatToIDR(changeAmount)}',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
+            ),
+          ),
+          const SizedBox(height: 5),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: completeTransaction,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 15),
+              ),
+              child: const Text(
+                'Complete Transaction',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ),
+        ],
+      );
       return Expanded(
         flex: 2,
         child: Padding(padding: const EdgeInsets.all(8.0), child: cartContent),
