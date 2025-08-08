@@ -1,82 +1,65 @@
-import 'package:poshit/database_helper.dart';
 import 'package:poshit/models/user.dart';
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
+import 'package:poshit/api/api_client.dart';
 
 class UserService {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final ApiClient _api = ApiClient();
 
   Future<int> insertUser(User user) async {
-    final db = await _dbHelper.database;
-    return await db.insert('users', user.toMap());
+    final res = await _api.postJson('/auth/register', {
+      'name': user.name,
+      'username': user.username,
+      'password': user.password,
+      'date_created': user.dateCreated,
+      'date_updated': user.dateUpdated,
+    });
+    return (res['id'] as num).toInt();
   }
 
   Future<List<User>> getUsers() async {
-    final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query('users');
-    return List.generate(maps.length, (i) {
-      return User.fromMap(maps[i]);
-    });
+    // Not exposed by API; return current user if needed via /auth/me
+    final me = await getUserById(0);
+    return me != null ? [me] : [];
   }
 
   Future<int> updateUser(User user) async {
-    final db = await _dbHelper.database;
-    return await db.update(
-      'users',
-      user.toMap(),
-      where: 'id = ?',
-      whereArgs: [user.id],
-    );
+    // Not implemented in API; no-op
+    return 0;
   }
 
   Future<int> deleteUser(int id) async {
-    final db = await _dbHelper.database;
-    return await db.delete('users', where: 'id = ?', whereArgs: [id]);
+    // Not implemented in API; no-op
+    return 0;
   }
 
   Future<User?> getUserByUsername(String username) async {
-    final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'users',
-      where: 'username = ?',
-      whereArgs: [username],
-    );
-    if (maps.isNotEmpty) {
-      return User.fromMap(maps.first);
-    } else {
-      return null;
-    }
+    // Not exposed by API directly; rely on login for lookup
+    return null;
   }
 
   Future<User?> getUserById(int id) async {
-    final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'users',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    if (maps.isNotEmpty) {
-      return User.fromMap(maps.first);
-    } else {
+    // Map to /auth/me using current token
+    try {
+      final res = await _api.getJson('/auth/me');
+      return User.fromMap(res);
+    } catch (_) {
       return null;
     }
   }
 
   Future<User?> authenticateUser(String username, String password) async {
-    final user = await getUserByUsername(username);
-    if (user != null) {
-      // For now, we'll do simple password comparison
-      // In a real app, you should use proper password hashing
-      if (user.password == password) {
-        return user;
+    try {
+      final res = await _api.postJson('/auth/login', {
+        'username': username,
+        'password': password,
+      });
+      final token = res['token'] as String?;
+      if (token != null) {
+        _api.setAuthToken(token);
       }
+      final userMap = res['user'] as Map<String, dynamic>;
+      return User.fromMap(userMap);
+    } catch (_) {
+      return null;
     }
-    return null;
-  }
-
-  String hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
   }
 }

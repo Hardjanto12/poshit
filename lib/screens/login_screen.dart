@@ -26,32 +26,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _checkForExistingUsers();
-  }
-
-  Future<void> _checkForExistingUsers() async {
-    final users = await _userService.getUsers();
-    if (users.isEmpty) {
-      // Create a default admin user if no users exist
-      final defaultUser = User(
-        name: 'Admin',
-        username: 'admin',
-        password: 'admin123',
-        dateCreated: DateTime.now().toIso8601String(),
-        dateUpdated: DateTime.now().toIso8601String(),
-      );
-      await _userService.insertUser(defaultUser);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Default admin account created: admin/admin123'),
-            duration: Duration(milliseconds: 2000),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
   }
 
   @override
@@ -117,24 +91,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Check if username already exists
-      final existingUser = await _userService.getUserByUsername(
-        _usernameController.text.trim(),
-      );
-      if (existingUser != null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Username already exists'),
-              backgroundColor: Colors.red,
-              duration: Duration(milliseconds: 2000),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-        return;
-      }
-
       // Create new user
       final newUser = User(
         name: _nameController.text.trim(),
@@ -144,7 +100,21 @@ class _LoginScreenState extends State<LoginScreen> {
         dateUpdated: DateTime.now().toIso8601String(),
       );
 
-      await _userService.insertUser(newUser);
+      try {
+        await _userService.insertUser(newUser);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Username already exists or invalid data'),
+              backgroundColor: Colors.red,
+              duration: Duration(milliseconds: 2000),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
 
       // Auto-login the new user
       final success = await _userSessionService.login(

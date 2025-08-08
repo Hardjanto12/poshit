@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:poshit/models/user.dart';
 import 'package:poshit/services/user_service.dart';
+import 'package:poshit/api/api_client.dart';
 
 class UserSessionService {
   static final UserSessionService _instance = UserSessionService._internal();
@@ -16,6 +17,10 @@ class UserSessionService {
   Future<bool> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     final savedUserId = prefs.getInt('current_user_id');
+    final savedToken = prefs.getString('auth_token');
+    if (savedToken != null) {
+      ApiClient().setAuthToken(savedToken);
+    }
 
     if (savedUserId != null) {
       try {
@@ -37,6 +42,11 @@ class UserSessionService {
       if (user != null) {
         _currentUser = user;
         await _saveSession(user.id!);
+        final token = ApiClient().authToken;
+        if (token != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth_token', token);
+        }
         return true;
       }
       return false;
@@ -50,6 +60,8 @@ class UserSessionService {
     _currentUser = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('current_user_id');
+    await prefs.remove('auth_token');
+    ApiClient().setAuthToken(null);
   }
 
   /// Save the current user session

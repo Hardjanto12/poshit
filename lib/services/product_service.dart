@@ -1,15 +1,12 @@
-import 'package:poshit/database_helper.dart';
 import 'package:poshit/models/product.dart';
 import 'package:poshit/services/settings_service.dart';
-import 'package:poshit/services/user_session_service.dart';
+import 'package:poshit/api/api_client.dart';
 
 class ProductService {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+  final ApiClient _api = ApiClient();
   final SettingsService _settingsService = SettingsService();
-  final UserSessionService _userSessionService = UserSessionService();
 
   Future<int> insertProduct(Product product) async {
-    final db = await _dbHelper.database;
     final productMap = Map<String, dynamic>.from(product.toMap());
 
     // Check if SKU is enabled
@@ -25,44 +22,25 @@ class ProductService {
       }
     }
 
-    return await db.insert('products', productMap);
+    final res = await _api.postJson('/products', productMap);
+    return (res['id'] as num).toInt();
   }
 
   Future<List<Product>> getProducts() async {
-    final db = await _dbHelper.database;
-    final userId = _userSessionService.currentUserId;
-    if (userId == null) return [];
-
-    final List<Map<String, dynamic>> maps = await db.query(
-      'products',
-      where: 'user_id = ?',
-      whereArgs: [userId],
-      orderBy: 'name ASC',
-    );
-    return List.generate(maps.length, (i) {
-      return Product.fromMap(maps[i]);
-    });
+    final list = await _api.getJsonList('/products');
+    return list.map((e) => Product.fromMap(e as Map<String, dynamic>)).toList();
   }
 
   Future<Product?> getProductById(int id) async {
-    final db = await _dbHelper.database;
-    final userId = _userSessionService.currentUserId;
-    if (userId == null) return null;
-
-    final List<Map<String, dynamic>> maps = await db.query(
-      'products',
-      where: 'id = ? AND user_id = ?',
-      whereArgs: [id, userId],
-    );
-    if (maps.isNotEmpty) {
-      return Product.fromMap(maps.first);
-    } else {
+    try {
+      final res = await _api.getJson('/products/$id');
+      return Product.fromMap(res);
+    } catch (_) {
       return null;
     }
   }
 
   Future<int> updateProduct(Product product) async {
-    final db = await _dbHelper.database;
     final productMap = Map<String, dynamic>.from(product.toMap());
 
     // Check if SKU is enabled
@@ -78,55 +56,37 @@ class ProductService {
       }
     }
 
-    return await db.update(
-      'products',
-      productMap,
-      where: 'id = ? AND user_id = ?',
-      whereArgs: [product.id, product.userId],
-    );
+    final res = await _api.putJson('/products/${product.id}', productMap);
+    return (res['id'] as num).toInt();
   }
 
   Future<int> deleteProduct(int id) async {
-    final db = await _dbHelper.database;
-    final userId = _userSessionService.currentUserId;
-    if (userId == null) return 0;
-
-    return await db.delete(
-      'products',
-      where: 'id = ? AND user_id = ?',
-      whereArgs: [id, userId],
-    );
+    await _api.delete('/products/$id');
+    return 1;
   }
 
   Future<void> updateStockQuantity(int productId, int newQuantity) async {
-    final db = await _dbHelper.database;
-    final userId = _userSessionService.currentUserId;
-    if (userId == null) return;
-
-    await db.update(
-      'products',
-      {
-        'stock_quantity': newQuantity,
-        'date_updated': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ? AND user_id = ?',
-      whereArgs: [productId, userId],
+    // Could be added to API if needed; for now fetch and update product
+    final product = await getProductById(productId);
+    if (product == null) return;
+    final updated = Product(
+      id: product.id,
+      userId: product.userId,
+      name: product.name,
+      price: product.price,
+      sku: product.sku,
+      stockQuantity: newQuantity,
+      dateCreated: product.dateCreated,
+      dateUpdated: DateTime.now().toIso8601String(),
     );
+    await updateProduct(updated);
   }
 
   Future<List<Product>> searchProducts(String query) async {
-    final db = await _dbHelper.database;
-    final userId = _userSessionService.currentUserId;
-    if (userId == null) return [];
-
-    final List<Map<String, dynamic>> maps = await db.query(
-      'products',
-      where: 'user_id = ? AND (name LIKE ? OR sku LIKE ?)',
-      whereArgs: [userId, '%$query%', '%$query%'],
-      orderBy: 'name ASC',
+    final list = await _api.getJsonList(
+      '/products/search',
+      query: {'q': query},
     );
-    return List.generate(maps.length, (i) {
-      return Product.fromMap(maps[i]);
-    });
+    return list.map((e) => Product.fromMap(e as Map<String, dynamic>)).toList();
   }
 }

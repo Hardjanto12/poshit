@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:poshit/database_helper.dart';
+// import 'package:poshit/database_helper.dart';
 import 'package:poshit/screens/product_list_screen.dart';
 import 'package:poshit/screens/transaction_list_screen.dart';
 import 'package:poshit/screens/new_transaction_screen.dart';
@@ -19,7 +19,7 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
-  await DatabaseHelper().database; // Initialize the database
+  // Database is now external (MySQL via API).
 
   // Initialize user session service
   final userSessionService = UserSessionService();
@@ -151,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      body: _pages[_selectedIndex],
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
