@@ -3,6 +3,7 @@ import 'package:poshit/models/product.dart';
 import 'package:poshit/services/product_service.dart';
 import 'package:poshit/services/settings_service.dart';
 import 'package:poshit/services/user_session_service.dart';
+import 'package:poshit/utils/icon_catalog.dart';
 
 class AddEditProductScreen extends StatefulWidget {
   final Product? product;
@@ -20,6 +21,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   final TextEditingController _skuController = TextEditingController();
   final TextEditingController _stockQuantityController =
       TextEditingController();
+  String? _iconName;
 
   final ProductService _productService = ProductService();
   final UserSessionService _userSessionService = UserSessionService();
@@ -35,6 +37,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
       _priceController.text = widget.product!.price.toString();
       _skuController.text = widget.product!.sku ?? '';
       _stockQuantityController.text = widget.product!.stockQuantity.toString();
+      _iconName = widget.product!.icon;
     }
   }
 
@@ -82,6 +85,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
           name: name,
           price: price,
           sku: sku,
+          icon: _iconName,
           stockQuantity: stockQuantity,
           dateCreated: DateTime.now().toIso8601String(),
           dateUpdated: DateTime.now().toIso8601String(),
@@ -95,6 +99,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
           name: name,
           price: price,
           sku: sku,
+          icon: _iconName,
           stockQuantity: stockQuantity,
           dateCreated: widget.product!.dateCreated,
           dateUpdated: DateTime.now().toIso8601String(),
@@ -170,6 +175,35 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   },
                 ),
               if (_useInventoryTracking) const SizedBox(height: 16.0),
+              InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Icon',
+                  border: OutlineInputBorder(),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: _iconName,
+                    hint: const Text('Select Icon'),
+                    items: IconCatalog.icons.entries
+                        .map(
+                          (e) => DropdownMenuItem<String>(
+                            value: e.key,
+                            child: Row(
+                              children: [
+                                Icon(e.value),
+                                const SizedBox(width: 8),
+                                Text(e.key),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setState(() => _iconName = v),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16.0),
               ElevatedButton(
                 onPressed: _saveProduct,
                 child: const Text('Save Product'),

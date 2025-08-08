@@ -9,6 +9,7 @@ import 'package:poshit/utils/currency_formatter.dart';
 import 'package:poshit/screens/receipt_preview_screen.dart';
 import 'package:poshit/services/settings_service.dart';
 import 'package:poshit/services/product_events.dart';
+import 'package:poshit/utils/icon_catalog.dart';
 // Removed: import 'package:fluttertoast/fluttertoast.dart';
 
 class NewTransactionScreen extends StatefulWidget {
@@ -34,6 +35,10 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
 
   bool _useInventoryTracking = true;
   bool _useSkuField = true;
+  bool _hideOutOfStock = false;
+
+  // Keep current sort so it re-applies after filtering/searching
+  ProductSort _currentSort = ProductSort.none;
 
   @override
   void initState() {
@@ -77,10 +82,39 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   void _filterProducts() {
     final query = _searchController.text.toLowerCase();
     setState(() {
-      _filteredProducts = _allProducts
+      List<Product> working = _allProducts
           .where((product) => product.name.toLowerCase().contains(query))
           .toList();
+
+      if (_hideOutOfStock) {
+        working = working.where((p) => p.stockQuantity > 0).toList();
+      }
+
+      // Apply current sort selection
+      switch (_currentSort) {
+        case ProductSort.name:
+          working.sort((a, b) => a.name.compareTo(b.name));
+          break;
+        case ProductSort.price:
+          working.sort((a, b) => a.price.compareTo(b.price));
+          break;
+        case ProductSort.none:
+          break;
+      }
+
+      _filteredProducts = working;
     });
+  }
+
+  void _onProductListMenuSelected(String value) {
+    if (value == 'sort_name') {
+      _currentSort = ProductSort.name;
+    } else if (value == 'sort_price') {
+      _currentSort = ProductSort.price;
+    } else if (value == 'filter_stock') {
+      _hideOutOfStock = !_hideOutOfStock; // toggle
+    }
+    _filterProducts();
   }
 
   void _addToCart(Product product) {
@@ -272,6 +306,9 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
                     formatToIDR: formatToIDR,
                     useInventoryTracking: _useInventoryTracking,
                     useSkuField: _useSkuField,
+                    onMenuSelected: _onProductListMenuSelected,
+                    hideOutOfStock: _hideOutOfStock,
+                    currentSort: _currentSort,
                   ),
                 ),
                 DraggableScrollableSheet(
@@ -336,6 +373,9 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
                   formatToIDR: formatToIDR,
                   useInventoryTracking: _useInventoryTracking,
                   useSkuField: _useSkuField,
+                  onMenuSelected: _onProductListMenuSelected,
+                  hideOutOfStock: _hideOutOfStock,
+                  currentSort: _currentSort,
                 ),
                 _CartAndTransactionDetailsPane(
                   isPortrait: isPortrait,
@@ -364,6 +404,8 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   }
 }
 
+enum ProductSort { none, name, price }
+
 class _ProductListPane extends StatelessWidget {
   const _ProductListPane({
     required this.isPortrait,
@@ -373,6 +415,9 @@ class _ProductListPane extends StatelessWidget {
     required this.formatToIDR,
     required this.useInventoryTracking,
     required this.useSkuField,
+    required this.onMenuSelected,
+    required this.hideOutOfStock,
+    required this.currentSort,
   });
 
   final bool isPortrait;
@@ -382,25 +427,52 @@ class _ProductListPane extends StatelessWidget {
   final Function(double) formatToIDR;
   final bool useInventoryTracking;
   final bool useSkuField;
+  final void Function(String) onMenuSelected;
+  final bool hideOutOfStock;
+  final ProductSort currentSort;
 
   @override
   Widget build(BuildContext context) {
     final columnWidget = Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: TextField(
-            controller: searchController,
-            decoration: const InputDecoration(
-              labelText: 'Search Products',
-              border: OutlineInputBorder(),
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(
-                vertical: 8.0,
-                horizontal: 12.0,
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: searchController,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Search products by name or SKU',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
               ),
-              labelStyle: TextStyle(fontSize: 14),
-            ),
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.tune),
+                itemBuilder: (context) => [
+                  CheckedPopupMenuItem<String>(
+                    value: 'sort_name',
+                    checked: currentSort == ProductSort.name,
+                    child: const Text('Sort by name'),
+                  ),
+                  CheckedPopupMenuItem<String>(
+                    value: 'sort_price',
+                    checked: currentSort == ProductSort.price,
+                    child: const Text('Sort by price'),
+                  ),
+                  CheckedPopupMenuItem<String>(
+                    value: 'filter_stock',
+                    checked: hideOutOfStock,
+                    child: const Text('Hide out-of-stock'),
+                  ),
+                ],
+                onSelected: onMenuSelected,
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -411,38 +483,79 @@ class _ProductListPane extends StatelessWidget {
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount:
                         (MediaQuery.of(context).size.width ~/
-                                (isPortrait ? 150 : 200))
+                                (isPortrait ? 160 : 220))
                             .toInt()
-                            .clamp(1, 5),
-                    crossAxisSpacing: 8.0,
-                    mainAxisSpacing: 8.0,
-                    childAspectRatio: isPortrait ? 1.0 : 0.8,
+                            .clamp(1, 6),
+                    crossAxisSpacing: 10.0,
+                    mainAxisSpacing: 10.0,
+                    childAspectRatio: isPortrait ? 0.78 : 0.85,
                   ),
                   itemCount: filteredProducts.length,
                   itemBuilder: (context, index) {
                     final product = filteredProducts[index];
-                    return Card(
-                      elevation: 2.0,
+                    return Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      elevation: 2,
                       child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
                         onTap: () => addToCart(product),
                         child: Padding(
-                          padding: const EdgeInsets.all(8.0),
+                          padding: const EdgeInsets.all(10.0),
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              const Icon(Icons.fastfood, size: 48.0),
+                              Container(
+                                height: 56,
+                                width: 56,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withOpacity(0.08),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  IconCatalog.iconFor(product.icon),
+                                  size: 28,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
                               Text(
                                 product.name,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w600,
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              Text(
-                                '${formatToIDR(product.price)}${useInventoryTracking ? ' | Stock: ${product.stockQuantity}' : ''}${useSkuField && product.sku != null ? ' | SKU: ${product.sku}' : ''}',
+                              const Spacer(),
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 8,
+                                runSpacing: 4,
+                                children: [
+                                  Text(
+                                    formatToIDR(product.price),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (useInventoryTracking)
+                                    _Chip(
+                                      text: 'Stock: ${product.stockQuantity}',
+                                    ),
+                                ],
                               ),
+                              if (useSkuField && product.sku != null) ...[
+                                const SizedBox(height: 4),
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: _Chip(text: 'SKU: ${product.sku}'),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -459,6 +572,22 @@ class _ProductListPane extends StatelessWidget {
     } else {
       return Expanded(flex: 3, child: columnWidget);
     }
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.text});
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(text, style: const TextStyle(fontSize: 12)),
+    );
   }
 }
 

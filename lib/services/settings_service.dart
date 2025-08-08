@@ -1,5 +1,6 @@
 import 'package:poshit/services/user_session_service.dart';
 import 'package:poshit/api/api_client.dart';
+import 'package:poshit/services/settings_events.dart';
 
 class SettingsService {
   final UserSessionService _userSessionService = UserSessionService();
@@ -7,6 +8,7 @@ class SettingsService {
 
   Future<void> setPrinterType(String printerType) async {
     await _setSetting('printer_type', printerType);
+    SettingsEvents().notifyUpdated();
   }
 
   Future<String> getPrinterType() async {
@@ -15,6 +17,7 @@ class SettingsService {
 
   Future<void> setBusinessName(String businessName) async {
     await _setSetting('business_name', businessName);
+    SettingsEvents().notifyUpdated();
   }
 
   Future<String> getBusinessName() async {
@@ -23,6 +26,7 @@ class SettingsService {
 
   Future<void> setReceiptFooter(String receiptFooter) async {
     await _setSetting('receipt_footer', receiptFooter);
+    SettingsEvents().notifyUpdated();
   }
 
   Future<String> getReceiptFooter() async {
@@ -34,6 +38,7 @@ class SettingsService {
       'use_inventory_tracking',
       useInventoryTracking.toString(),
     );
+    SettingsEvents().notifyUpdated();
   }
 
   Future<bool> getUseInventoryTracking() async {
@@ -43,6 +48,7 @@ class SettingsService {
 
   Future<void> setUseSkuField(bool useSkuField) async {
     await _setSetting('use_sku_field', useSkuField.toString());
+    SettingsEvents().notifyUpdated();
   }
 
   Future<bool> getUseSkuField() async {
@@ -52,6 +58,7 @@ class SettingsService {
 
   Future<void> setLastConnectedPrinterAddress(String address) async {
     await _setSetting('last_connected_printer_address', address);
+    SettingsEvents().notifyUpdated();
   }
 
   Future<String?> getLastConnectedPrinterAddress() async {

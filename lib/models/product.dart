@@ -4,6 +4,7 @@ class Product {
   String name;
   double price;
   String? sku;
+  String? icon; // Material icon name
   int stockQuantity;
   String dateCreated;
   String dateUpdated;
@@ -14,6 +15,7 @@ class Product {
     required this.name,
     required this.price,
     this.sku,
+    this.icon,
     this.stockQuantity = 0,
     required this.dateCreated,
     required this.dateUpdated,
@@ -26,6 +28,7 @@ class Product {
       'name': name,
       'price': price,
       'sku': sku,
+      'icon': icon,
       'stock_quantity': stockQuantity,
       'date_created': dateCreated,
       'date_updated': dateUpdated,
@@ -39,6 +42,7 @@ class Product {
       name: map['name'],
       price: (map['price'] as num).toDouble(),
       sku: map['sku'],
+      icon: map['icon'],
       stockQuantity: (map['stock_quantity'] as num).toInt(),
       dateCreated: map['date_created'],
       dateUpdated: map['date_updated'],
