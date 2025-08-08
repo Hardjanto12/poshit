@@ -6,6 +6,7 @@ import 'package:poshit/screens/new_transaction_screen.dart';
 import 'dart:io' show Platform;
 import 'package:poshit/screens/settings_screen.dart';
 import 'package:poshit/screens/login_screen.dart';
+import 'package:poshit/screens/user_management_screen.dart';
 import 'package:poshit/services/user_session_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -113,10 +114,12 @@ class _HomeScreenState extends State<HomeScreen> {
               leading: Icon(Icons.group),
               title: Text('User Management'),
               onTap: () {
-                // TODO: Implement User Management screen navigation
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('User Management not implemented.')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UserManagementScreen(),
+                  ),
                 );
               },
             ),

@@ -80,7 +80,10 @@ class ApiClient {
   Future<void> delete(String path) async {
     final res = await http.delete(_uri(path), headers: _headers());
     if (!(res.statusCode >= 200 && res.statusCode < 300)) {
-      throw ApiError('HTTP ${res.statusCode}: ${res.body}');
+      throw ApiError(
+        'HTTP ${res.statusCode}: ${res.body}',
+        statusCode: res.statusCode,
+      );
     }
   }
 
@@ -89,14 +92,18 @@ class ApiClient {
         ? (res.statusCode == 200 || res.statusCode == 201)
         : (res.statusCode >= 200 && res.statusCode < 300);
     if (!ok) {
-      throw ApiError('HTTP ${res.statusCode}: ${res.body}');
+      throw ApiError(
+        'HTTP ${res.statusCode}: ${res.body}',
+        statusCode: res.statusCode,
+      );
     }
   }
 }
 
 class ApiError implements Exception {
   final String message;
-  ApiError(this.message);
+  final int statusCode;
+  ApiError(this.message, {this.statusCode = 0});
   @override
   String toString() => 'ApiError: $message';
 }

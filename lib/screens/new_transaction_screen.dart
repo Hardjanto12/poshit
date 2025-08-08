@@ -8,6 +8,7 @@ import 'package:poshit/services/user_session_service.dart';
 import 'package:poshit/utils/currency_formatter.dart';
 import 'package:poshit/screens/receipt_preview_screen.dart';
 import 'package:poshit/services/settings_service.dart';
+import 'package:poshit/services/product_events.dart';
 // Removed: import 'package:fluttertoast/fluttertoast.dart';
 
 class NewTransactionScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
   final TransactionService _transactionService = TransactionService();
   final SettingsService _settingsService = SettingsService();
   final UserSessionService _userSessionService = UserSessionService();
+  final _productsVersion = ProductEvents().version;
 
   List<Product> _allProducts = [];
   List<Product> _filteredProducts = [];
@@ -39,6 +41,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     _loadSettingsAndProducts();
     _cashReceivedController.addListener(_onCashReceivedChanged);
     _searchController.addListener(_filterProducts);
+    _productsVersion.addListener(_onProductsUpdated);
   }
 
   Future<void> _loadSettingsAndProducts() async {
@@ -54,6 +57,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     _cashReceivedController.dispose();
     _searchController.removeListener(_filterProducts);
     _searchController.dispose();
+    _productsVersion.removeListener(_onProductsUpdated);
     super.dispose();
   }
 
@@ -63,6 +67,11 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
       _allProducts = products;
       _filterProducts(); // Initialize filtered products
     });
+  }
+
+  void _onProductsUpdated() {
+    // Refresh product list and update cart references if names/prices changed
+    _loadProducts();
   }
 
   void _filterProducts() {

@@ -1,6 +1,7 @@
 import 'package:poshit/models/product.dart';
 import 'package:poshit/services/settings_service.dart';
 import 'package:poshit/api/api_client.dart';
+import 'package:poshit/services/product_events.dart';
 
 class ProductService {
   final ApiClient _api = ApiClient();
@@ -23,6 +24,7 @@ class ProductService {
     }
 
     final res = await _api.postJson('/products', productMap);
+    ProductEvents().notifyUpdated();
     return (res['id'] as num).toInt();
   }
 
@@ -57,11 +59,13 @@ class ProductService {
     }
 
     final res = await _api.putJson('/products/${product.id}', productMap);
+    ProductEvents().notifyUpdated();
     return (res['id'] as num).toInt();
   }
 
   Future<int> deleteProduct(int id) async {
     await _api.delete('/products/$id');
+    ProductEvents().notifyUpdated();
     return 1;
   }
 

@@ -40,7 +40,10 @@ class UserService {
     // Map to /auth/me using current token
     try {
       final res = await _api.getJson('/auth/me');
-      return User.fromMap(res);
+      final userMap =
+          res['user'] as Map<String, dynamic>? ??
+          (res.containsKey('name') ? res : null);
+      return userMap != null ? User.fromMap(userMap) : null;
     } catch (_) {
       return null;
     }

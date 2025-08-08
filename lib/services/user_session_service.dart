@@ -25,6 +25,13 @@ class UserSessionService {
     if (savedUserId != null) {
       try {
         _currentUser = await _userService.getUserById(savedUserId);
+        // Populate role/org if token is present
+        try {
+          final me = await ApiClient().getJson('/auth/me');
+          _currentRole = (me['role'] as String?);
+          final org = me['organization'] as Map<String, dynamic>?;
+          _organizationId = org != null ? (org['id'] as num?)?.toInt() : null;
+        } catch (_) {}
         return _currentUser != null;
       } catch (e) {
         // If user doesn't exist anymore, clear saved session
@@ -47,6 +54,13 @@ class UserSessionService {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('auth_token', token);
         }
+        // load role/org
+        try {
+          final me = await ApiClient().getJson('/auth/me');
+          _currentRole = (me['role'] as String?);
+          final org = me['organization'] as Map<String, dynamic>?;
+          _organizationId = org != null ? (org['id'] as num?)?.toInt() : null;
+        } catch (_) {}
         return true;
       }
       return false;
@@ -81,4 +95,11 @@ class UserSessionService {
 
   /// Get the current user username
   String? get currentUserUsername => _currentUser?.username;
+
+  // Role and org (populated from /auth/me)
+  String? _currentRole;
+  int? _organizationId;
+
+  String? get currentRole => _currentRole;
+  int? get currentOrganizationId => _organizationId;
 }

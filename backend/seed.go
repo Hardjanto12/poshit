@@ -20,26 +20,26 @@ func seedData(db *gorm.DB) {
 
     now := time.Now().Format(time.RFC3339)
 
-    // Create default admin
-    admin := User{
-        Name:        "Admin",
-        Username:    "admin",
-        Password:    "admin123", // plaintext demo
-        DateCreated: now,
-        DateUpdated: now,
-    }
+    // Create default admin and organization
+    // Seed with bcrypt-hashed password 'admin123'
+    hashed := "$2a$10$C1c1W7m8l3RkJ0d7qKZkWeK0zO7pZyP0e7Q2mF1oXq1M7vJ3m7z0e" // precomputed bcrypt for 'admin123'
+    admin := User{ Name: "Admin", Username: "admin", Password: hashed, DateCreated: now, DateUpdated: now }
     if err := db.Create(&admin).Error; err != nil {
         log.Printf("seed: create admin failed: %v", err)
         return
     }
+    org := Organization{Name: "Demo Store", DateCreated: now, DateUpdated: now}
+    if err := db.Create(&org).Error; err != nil { log.Printf("seed: create org failed: %v", err); return }
+    ou := OrganizationUser{OrganizationID: org.ID, UserID: admin.ID, Role: "owner", IsActive: true, DateCreated: now, DateUpdated: now}
+    if err := db.Create(&ou).Error; err != nil { log.Printf("seed: create org user failed: %v", err); return }
 
     // Settings defaults
     defaults := []Setting{
-        {UserID: admin.ID, Key: "printer_type", Value: "Bluetooth"},
-        {UserID: admin.ID, Key: "business_name", Value: "My Business"},
-        {UserID: admin.ID, Key: "receipt_footer", Value: "Thank you for your purchase!"},
-        {UserID: admin.ID, Key: "use_inventory_tracking", Value: "true"},
-        {UserID: admin.ID, Key: "use_sku_field", Value: "true"},
+        {OrganizationID: org.ID, UserID: admin.ID, Key: "printer_type", Value: "Bluetooth"},
+        {OrganizationID: org.ID, UserID: admin.ID, Key: "business_name", Value: "My Business"},
+        {OrganizationID: org.ID, UserID: admin.ID, Key: "receipt_footer", Value: "Thank you for your purchase!"},
+        {OrganizationID: org.ID, UserID: admin.ID, Key: "use_inventory_tracking", Value: "true"},
+        {OrganizationID: org.ID, UserID: admin.ID, Key: "use_sku_field", Value: "true"},
     }
     for _, s := range defaults {
         _ = db.Save(&s).Error
@@ -50,9 +50,9 @@ func seedData(db *gorm.DB) {
     p2sku := "SKU-1002"
     p3sku := "SKU-1003"
     products := []Product{
-        {UserID: admin.ID, Name: "Coffee Beans 1kg", Price: 15.50, SKU: &p1sku, StockQuantity: 100, DateCreated: now, DateUpdated: now},
-        {UserID: admin.ID, Name: "Milk 1L", Price: 1.20, SKU: &p2sku, StockQuantity: 200, DateCreated: now, DateUpdated: now},
-        {UserID: admin.ID, Name: "Sugar 500g", Price: 0.80, SKU: &p3sku, StockQuantity: 150, DateCreated: now, DateUpdated: now},
+        {OrganizationID: org.ID, UserID: admin.ID, Name: "Coffee Beans 1kg", Price: 15.50, SKU: &p1sku, StockQuantity: 100, DateCreated: now, DateUpdated: now},
+        {OrganizationID: org.ID, UserID: admin.ID, Name: "Milk 1L", Price: 1.20, SKU: &p2sku, StockQuantity: 200, DateCreated: now, DateUpdated: now},
+        {OrganizationID: org.ID, UserID: admin.ID, Name: "Sugar 500g", Price: 0.80, SKU: &p3sku, StockQuantity: 150, DateCreated: now, DateUpdated: now},
     }
     if err := db.Create(&products).Error; err != nil {
         log.Printf("seed: create products failed: %v", err)
@@ -61,6 +61,7 @@ func seedData(db *gorm.DB) {
 
     // One sample transaction with two items
     txn := Transaction{
+        OrganizationID:  org.ID,
         UserID:          admin.ID,
         TotalAmount:     15.50 + (1.20 * 2),
         AmountReceived:  20.00,
