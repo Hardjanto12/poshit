@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:poshit/database_helper.dart';
+// import 'package:poshit/database_helper.dart';
 import 'package:poshit/screens/product_list_screen.dart';
 import 'package:poshit/screens/transaction_list_screen.dart';
 import 'package:poshit/screens/new_transaction_screen.dart';
 import 'dart:io' show Platform;
 import 'package:poshit/screens/settings_screen.dart';
 import 'package:poshit/screens/login_screen.dart';
+import 'package:poshit/screens/user_management_screen.dart';
 import 'package:poshit/services/user_session_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -19,7 +20,7 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
-  await DatabaseHelper().database; // Initialize the database
+  // Database is now external (MySQL via API).
 
   // Initialize user session service
   final userSessionService = UserSessionService();
@@ -113,10 +114,12 @@ class _HomeScreenState extends State<HomeScreen> {
               leading: Icon(Icons.group),
               title: Text('User Management'),
               onTap: () {
-                // TODO: Implement User Management screen navigation
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('User Management not implemented.')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UserManagementScreen(),
+                  ),
                 );
               },
             ),
@@ -151,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      body: _pages[_selectedIndex],
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(

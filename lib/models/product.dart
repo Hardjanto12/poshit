@@ -37,9 +37,9 @@ class Product {
       id: map['id'],
       userId: map['user_id'],
       name: map['name'],
-      price: map['price'],
+      price: (map['price'] as num).toDouble(),
       sku: map['sku'],
-      stockQuantity: map['stock_quantity'],
+      stockQuantity: (map['stock_quantity'] as num).toInt(),
       dateCreated: map['date_created'],
       dateUpdated: map['date_updated'],
     );

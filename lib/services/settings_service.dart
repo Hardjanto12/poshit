@@ -1,10 +1,9 @@
-import 'package:poshit/database_helper.dart';
 import 'package:poshit/services/user_session_service.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:poshit/api/api_client.dart';
 
 class SettingsService {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
   final UserSessionService _userSessionService = UserSessionService();
+  final ApiClient _api = ApiClient();
 
   Future<void> setPrinterType(String printerType) async {
     await _setSetting('printer_type', printerType);
@@ -62,31 +61,21 @@ class SettingsService {
   Future<void> _setSetting(String key, String value) async {
     final userId = _userSessionService.currentUserId;
     if (userId == null) return;
-
-    final db = await _dbHelper.database;
-    await db.insert('settings', {
-      'user_id': userId,
-      'key': key,
-      'value': value,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await _api.putJson('/settings/$key', {'value': value});
   }
 
   Future<String> _getSetting(String key, String defaultValue) async {
     final userId = _userSessionService.currentUserId;
     if (userId == null) return defaultValue;
-
-    final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'settings',
-      where: 'user_id = ? AND key = ?',
-      whereArgs: [userId, key],
-    );
-
-    if (maps.isNotEmpty) {
-      return maps.first['value'] as String;
-    } else {
-      // Set default value if not found
-      await _setSetting(key, defaultValue);
+    try {
+      final res = await _api.getJson('/settings/$key');
+      final value = res['value'];
+      if (value == null) {
+        await _setSetting(key, defaultValue);
+        return defaultValue;
+      }
+      return value as String;
+    } catch (_) {
       return defaultValue;
     }
   }
@@ -94,21 +83,17 @@ class SettingsService {
   Future<String?> _getSettingNullable(String key, String? defaultValue) async {
     final userId = _userSessionService.currentUserId;
     if (userId == null) return defaultValue;
-
-    final db = await _dbHelper.database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'settings',
-      where: 'user_id = ? AND key = ?',
-      whereArgs: [userId, key],
-    );
-
-    if (maps.isNotEmpty) {
-      return maps.first['value'] as String?;
-    } else {
-      // Set default value if not found and default is not null
-      if (defaultValue != null) {
-        await _setSetting(key, defaultValue);
+    try {
+      final res = await _api.getJson('/settings/$key');
+      final value = res['value'];
+      if (value == null) {
+        if (defaultValue != null) {
+          await _setSetting(key, defaultValue);
+        }
+        return defaultValue;
       }
+      return value as String;
+    } catch (_) {
       return defaultValue;
     }
   }

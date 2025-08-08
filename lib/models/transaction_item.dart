@@ -34,10 +34,10 @@ class TransactionItem {
   factory TransactionItem.fromMap(Map<String, dynamic> map) {
     return TransactionItem(
       id: map['id'],
-      transactionId: map['transaction_id'],
-      productId: map['product_id'],
-      quantity: map['quantity'],
-      priceAtTransaction: map['price_at_transaction'],
+      transactionId: (map['transaction_id'] as num).toInt(),
+      productId: (map['product_id'] as num).toInt(),
+      quantity: (map['quantity'] as num).toInt(),
+      priceAtTransaction: (map['price_at_transaction'] as num).toDouble(),
       dateCreated: map['date_created'],
       dateUpdated: map['date_updated'],
     );

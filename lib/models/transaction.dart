@@ -35,10 +35,10 @@ class Transaction {
   factory Transaction.fromMap(Map<String, dynamic> map) {
     return Transaction(
       id: map['id'],
-      userId: map['user_id'],
-      totalAmount: map['total_amount'],
-      amountReceived: map['amount_received'],
-      change: map['change'],
+      userId: (map['user_id'] as num).toInt(),
+      totalAmount: (map['total_amount'] as num).toDouble(),
+      amountReceived: (map['amount_received'] as num).toDouble(),
+      change: (map['change'] as num).toDouble(),
       transactionDate: map['transaction_date'],
       dateCreated: map['date_created'],
       dateUpdated: map['date_updated'],
