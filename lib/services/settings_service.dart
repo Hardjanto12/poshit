@@ -1,4 +1,3 @@
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:poshit/database_helper.dart';
 import 'package:poshit/services/user_session_service.dart';
 import 'package:sqflite/sqflite.dart';

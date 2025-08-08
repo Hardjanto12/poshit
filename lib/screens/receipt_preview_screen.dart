@@ -5,6 +5,7 @@ import 'package:poshit/utils/currency_formatter.dart';
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:typed_data';
@@ -36,23 +37,23 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
   final SettingsService _settingsService = SettingsService();
   List<BluetoothDevice> _devices = [];
   BluetoothDevice? _device;
-  String _selectedPrinterType = 'Bluetooth'; // Default to Bluetooth
-
   String _businessName = 'My Store';
   String _receiptFooter = 'Thank you!';
 
-  // BluetoothPrintPlus.isConnected is a bool, not a ValueNotifier
-  bool get _connected => BluetoothPrintPlus.isConnected;
+  // Bluetooth is unsupported on Windows in this app; guard calls on Windows
+  bool get _connected =>
+      Platform.isWindows ? false : BluetoothPrintPlus.isConnected;
 
   @override
   void initState() {
     super.initState();
-    _loadPrinterType();
-    _initBluetooth(); // Call _initBluetooth to start scanning and attempt auto-connect
+    if (!Platform.isWindows) {
+      _initBluetooth(); // Only initialize Bluetooth on supported platforms
+      BluetoothPrintPlus.connectState.listen((state) {
+        if (mounted) setState(() {});
+      });
+    }
     _loadSettings();
-    BluetoothPrintPlus.connectState.listen((state) {
-      if (mounted) setState(() {});
-    });
   }
 
   @override
@@ -73,18 +74,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
     }
   }
 
-  Future<void> _loadPrinterType() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _selectedPrinterType = prefs.getString('printerType') ?? 'Bluetooth';
-    });
-  }
-
-  Future<void> _savePrinterType(String type) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('printerType', type);
-  }
+  // Removed printer type preference as only Bluetooth is supported currently
 
   Future<void> _initBluetooth() async {
     final prefs = await SharedPreferences.getInstance();
@@ -109,9 +99,11 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
       }
     });
 
-    BluetoothPrintPlus.connectState.listen((state) {
-      if (mounted) setState(() {});
-    });
+    if (!Platform.isWindows) {
+      BluetoothPrintPlus.connectState.listen((state) {
+        if (mounted) setState(() {});
+      });
+    }
 
     await BluetoothPrintPlus.startScan(timeout: const Duration(seconds: 4));
   }
@@ -275,8 +267,54 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
   }
 
   Future<void> _generateAndSavePdf() async {
-    final pdf = pw.Document();
+    final pdfBytes = await _buildReceiptPdfBytes();
 
+    try {
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = await getExternalStorageDirectory();
+      } else if (Platform.isIOS) {
+        directory = await getApplicationDocumentsDirectory();
+      } else {
+        directory = await getDownloadsDirectory();
+      }
+      if (directory == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not access downloads directory.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(milliseconds: 2000),
+          ),
+        );
+        return;
+      }
+      final file = File(
+        '${directory.path}/receipt_${widget.transaction.id}.pdf',
+      );
+      await file.writeAsBytes(pdfBytes);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Receipt saved to ${directory.path}'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving PDF: $e'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
+    }
+  }
+
+  Future<Uint8List> _buildReceiptPdfBytes() async {
+    final pdf = pw.Document();
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -320,10 +358,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text("Discount:"),
-                  pw.Text(formatToIDR(0)), // Assuming no discount for now
-                ],
+                children: [pw.Text("Discount:"), pw.Text(formatToIDR(0))],
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -359,49 +394,12 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
         },
       ),
     );
+    return Uint8List.fromList(await pdf.save());
+  }
 
-    try {
-      Directory? directory;
-      if (Platform.isAndroid) {
-        directory = await getExternalStorageDirectory();
-      } else if (Platform.isIOS) {
-        directory = await getApplicationDocumentsDirectory();
-      } else {
-        directory = await getDownloadsDirectory();
-      }
-      if (directory == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not access downloads directory.'),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(milliseconds: 2000),
-          ),
-        );
-        return;
-      }
-      final file = File(
-        '${directory.path}/receipt_${widget.transaction.id}.pdf',
-      );
-      await file.writeAsBytes(await pdf.save());
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Receipt saved to ${directory.path}'),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(milliseconds: 2000),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error saving PDF: $e'),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(milliseconds: 2000),
-        ),
-      );
-    }
+  Future<void> _printWithSystem() async {
+    final bytes = await _buildReceiptPdfBytes();
+    await Printing.layoutPdf(onLayout: (format) async => bytes);
   }
 
   @override
@@ -517,48 +515,68 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            // Bluetooth Device Selection
-            if (_devices.isNotEmpty)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Bluetooth Device Selection (disabled on Windows)
+            if (!Platform.isWindows) ...[
+              if (_devices.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Select Bluetooth Printer:'),
+                    DropdownButton<BluetoothDevice>(
+                      value: _device,
+                      hint: const Text('Choose device'),
+                      isExpanded: true,
+                      items: _devices.map((device) {
+                        final label = device.name.isNotEmpty
+                            ? device.name
+                            : device.address;
+                        return DropdownMenuItem<BluetoothDevice>(
+                          value: device,
+                          child: Text(label),
+                        );
+                      }).toList(),
+                      onChanged: (device) {
+                        setState(() {
+                          _device = device;
+                        });
+                      },
+                    ),
+                  ],
+                )
+              else
+                const Text('No Bluetooth devices found. Please scan again.'),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  const Text('Select Bluetooth Printer:'),
-                  DropdownButton<BluetoothDevice>(
-                    value: _device,
-                    hint: const Text('Choose device'),
-                    isExpanded: true,
-                    items: _devices.map((device) {
-                      return DropdownMenuItem<BluetoothDevice>(
-                        value: device,
-                        child: Text(device.name ?? device.address ?? 'Unknown'),
-                      );
-                    }).toList(),
-                    onChanged: (device) {
-                      setState(() {
-                        _device = device;
-                      });
-                    },
+                  ElevatedButton(
+                    onPressed: _connected ? _disconnect : _connect,
+                    child: Text(_connected ? 'Disconnect' : 'Connect'),
+                  ),
+                  ElevatedButton(
+                    onPressed: _connected
+                        ? _printReceipt
+                        : null, // Only enable if connected for Bluetooth
+                    child: const Text('Print'),
                   ),
                 ],
               ),
-            if (_devices.isEmpty)
-              const Text('No Bluetooth devices found. Please scan again.'),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: _connected ? _disconnect : _connect,
-                  child: Text(_connected ? 'Disconnect' : 'Connect'),
-                ),
-                ElevatedButton(
-                  onPressed: _connected
-                      ? _printReceipt
-                      : null, // Only enable if connected for Bluetooth
-                  child: const Text('Print'),
-                ),
-              ],
-            ),
+            ] else ...[
+              const Text(
+                'Bluetooth printing is not supported on Windows. Use Download PDF or System Print.',
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _printWithSystem,
+                    icon: const Icon(Icons.print),
+                    label: const Text('System Print'),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: _generateAndSavePdf,

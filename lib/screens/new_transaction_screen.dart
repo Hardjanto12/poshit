@@ -143,6 +143,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
     final double totalAmount = _calculateTotal();
     final double amountReceived =
         double.tryParse(_cashReceivedController.text) ?? 0.0;
+    final double changeGiven = amountReceived - totalAmount;
 
     if (amountReceived < totalAmount) {
       if (mounted) {
@@ -161,7 +162,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
       userId: userId,
       totalAmount: totalAmount,
       amountReceived: amountReceived,
-      change: _changeAmount,
+      change: changeGiven,
       transactionDate: DateTime.now().toIso8601String(),
       dateCreated: DateTime.now().toIso8601String(),
       dateUpdated: DateTime.now().toIso8601String(),
@@ -222,7 +223,7 @@ class _NewTransactionScreenState extends State<NewTransactionScreen> {
               ), // Pass the transaction with its new ID
               transactionItems: receiptItems,
               cashReceived: amountReceived,
-              changeGiven: _changeAmount,
+              changeGiven: changeGiven,
             ),
           ),
         );
@@ -447,10 +448,7 @@ class _ProductListPane extends StatelessWidget {
     if (isPortrait) {
       return columnWidget;
     } else {
-      return Expanded(
-        flex: 3,
-        child: columnWidget,
-      );
+      return Expanded(flex: 3, child: columnWidget);
     }
   }
 }

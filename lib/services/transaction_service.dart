@@ -1,7 +1,7 @@
 import 'package:poshit/database_helper.dart';
 import 'package:poshit/models/transaction.dart' as poshit_txn;
 import 'package:poshit/models/transaction_item.dart';
-import 'package:poshit/models/product.dart'; // Import Product model
+// Import Product model
 import 'package:poshit/services/product_service.dart'; // Import ProductService
 import 'package:poshit/services/settings_service.dart'; // Import SettingsService
 import 'package:poshit/services/user_session_service.dart'; // Import UserSessionService

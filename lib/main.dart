@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:poshit/database_helper.dart';
-import 'package:poshit/models/user.dart';
 import 'package:poshit/screens/product_list_screen.dart';
 import 'package:poshit/screens/transaction_list_screen.dart';
 import 'package:poshit/screens/new_transaction_screen.dart';
 import 'dart:io' show Platform;
-import 'package:poshit/screens/reporting_dashboard_screen.dart';
 import 'package:poshit/screens/settings_screen.dart';
 import 'package:poshit/screens/login_screen.dart';
 import 'package:poshit/services/user_session_service.dart';
