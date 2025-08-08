@@ -48,6 +48,7 @@ type Product struct {
     Name         string  `json:"name"`
     Price        float64 `json:"price"`
     SKU          *string `json:"sku"`
+    Icon         *string `json:"icon"`
     StockQuantity int    `json:"stock_quantity"`
     DateCreated  string  `json:"date_created"`
     DateUpdated  string  `json:"date_updated"`
@@ -341,6 +342,7 @@ func updateProduct(c *gin.Context) {
     p.Name = body.Name
     p.Price = body.Price
     p.SKU = body.SKU
+    p.Icon = body.Icon
     p.StockQuantity = body.StockQuantity
     p.DateUpdated = nowISO()
     if err := db.Save(&p).Error; err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }

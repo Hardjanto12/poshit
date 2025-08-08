@@ -151,107 +151,115 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('POS Login'), centerTitle: true),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.point_of_sale, size: 80, color: Colors.blue),
-              const SizedBox(height: 20),
-              Text(
-                _isCreatingAccount ? 'Create Account' : 'Login',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            16 + MediaQuery.of(context).viewInsets.bottom,
+          ),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.point_of_sale, size: 80, color: Colors.blue),
+                const SizedBox(height: 20),
+                Text(
+                  _isCreatingAccount ? 'Create Account' : 'Login',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 30),
+                const SizedBox(height: 30),
 
-              if (_isCreatingAccount) ...[
+                if (_isCreatingAccount) ...[
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter your name';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 TextFormField(
-                  controller: _nameController,
+                  controller: _usernameController,
                   decoration: const InputDecoration(
-                    labelText: 'Full Name',
+                    labelText: 'Username',
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person),
+                    prefixIcon: Icon(Icons.account_circle),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter your name';
+                      return 'Please enter username';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
-              ],
 
-              TextFormField(
-                controller: _usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.account_circle),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock),
+                  ),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter password';
+                    }
+                    if (_isCreatingAccount && value.length < 6) {
+                      return 'Password must be at least 6 characters';
+                    }
+                    return null;
+                  },
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter username';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isLoading
+                        ? null
+                        : (_isCreatingAccount ? _createAccount : _login),
+                    child: _isLoading
+                        ? const CircularProgressIndicator()
+                        : Text(_isCreatingAccount ? 'Create Account' : 'Login'),
+                  ),
                 ),
-                obscureText: true,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter password';
-                  }
-                  if (_isCreatingAccount && value.length < 6) {
-                    return 'Password must be at least 6 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
+                TextButton(
                   onPressed: _isLoading
                       ? null
-                      : (_isCreatingAccount ? _createAccount : _login),
-                  child: _isLoading
-                      ? const CircularProgressIndicator()
-                      : Text(_isCreatingAccount ? 'Create Account' : 'Login'),
+                      : () {
+                          setState(() {
+                            _isCreatingAccount = !_isCreatingAccount;
+                          });
+                        },
+                  child: Text(
+                    _isCreatingAccount
+                        ? 'Already have an account? Login'
+                        : 'Don\'t have an account? Create one',
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-
-              TextButton(
-                onPressed: _isLoading
-                    ? null
-                    : () {
-                        setState(() {
-                          _isCreatingAccount = !_isCreatingAccount;
-                        });
-                      },
-                child: Text(
-                  _isCreatingAccount
-                      ? 'Already have an account? Login'
-                      : 'Don\'t have an account? Create one',
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

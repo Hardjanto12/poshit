@@ -49,10 +49,13 @@ func seedData(db *gorm.DB) {
     p1sku := "SKU-1001"
     p2sku := "SKU-1002"
     p3sku := "SKU-1003"
+    coffeeIcon := "fastfood"
+    milkIcon := "local_drink"
+    sugarIcon := "icecream"
     products := []Product{
-        {OrganizationID: org.ID, UserID: admin.ID, Name: "Coffee Beans 1kg", Price: 15.50, SKU: &p1sku, StockQuantity: 100, DateCreated: now, DateUpdated: now},
-        {OrganizationID: org.ID, UserID: admin.ID, Name: "Milk 1L", Price: 1.20, SKU: &p2sku, StockQuantity: 200, DateCreated: now, DateUpdated: now},
-        {OrganizationID: org.ID, UserID: admin.ID, Name: "Sugar 500g", Price: 0.80, SKU: &p3sku, StockQuantity: 150, DateCreated: now, DateUpdated: now},
+        {OrganizationID: org.ID, UserID: admin.ID, Name: "Coffee Beans 1kg", Price: 15.50, SKU: &p1sku, Icon: &coffeeIcon, StockQuantity: 100, DateCreated: now, DateUpdated: now},
+        {OrganizationID: org.ID, UserID: admin.ID, Name: "Milk 1L", Price: 1.20, SKU: &p2sku, Icon: &milkIcon, StockQuantity: 200, DateCreated: now, DateUpdated: now},
+        {OrganizationID: org.ID, UserID: admin.ID, Name: "Sugar 500g", Price: 0.80, SKU: &p3sku, Icon: &sugarIcon, StockQuantity: 150, DateCreated: now, DateUpdated: now},
     }
     if err := db.Create(&products).Error; err != nil {
         log.Printf("seed: create products failed: %v", err)
