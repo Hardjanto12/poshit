@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:poshit/models/product.dart';
 import 'package:poshit/services/product_service.dart';
+import 'package:poshit/services/settings_service.dart';
+import 'package:poshit/services/user_session_service.dart';
 
 class AddEditProductScreen extends StatefulWidget {
   final Product? product;
@@ -16,19 +18,30 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _skuController = TextEditingController();
-  final TextEditingController _stockQuantityController = TextEditingController();
+  final TextEditingController _stockQuantityController =
+      TextEditingController();
 
   final ProductService _productService = ProductService();
+  final UserSessionService _userSessionService = UserSessionService();
+  bool _useInventoryTracking = true;
+  bool _useSkuField = true;
 
   @override
   void initState() {
     super.initState();
+    _loadSettings();
     if (widget.product != null) {
       _nameController.text = widget.product!.name;
       _priceController.text = widget.product!.price.toString();
       _skuController.text = widget.product!.sku ?? '';
       _stockQuantityController.text = widget.product!.stockQuantity.toString();
     }
+  }
+
+  Future<void> _loadSettings() async {
+    _useInventoryTracking = await SettingsService().getUseInventoryTracking();
+    _useSkuField = await SettingsService().getUseSkuField();
+    setState(() {});
   }
 
   @override
@@ -42,14 +55,30 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
   Future<void> _saveProduct() async {
     if (_formKey.currentState!.validate()) {
+      final userId = _userSessionService.currentUserId;
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User session expired. Please login again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       final String name = _nameController.text;
       final double price = double.parse(_priceController.text);
-      final String? sku = _skuController.text.isEmpty ? null : _skuController.text;
-      final int stockQuantity = int.parse(_stockQuantityController.text);
+      final String? sku = _useSkuField && _skuController.text.isNotEmpty
+          ? _skuController.text
+          : null;
+      final int stockQuantity = _useInventoryTracking
+          ? int.parse(_stockQuantityController.text)
+          : 0;
 
       if (widget.product == null) {
         // Add new product
         final newProduct = Product(
+          userId: userId,
           name: name,
           price: price,
           sku: sku,
@@ -62,6 +91,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
         // Update existing product
         final updatedProduct = Product(
           id: widget.product!.id,
+          userId: userId,
           name: name,
           price: price,
           sku: sku,
@@ -71,6 +101,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
         );
         await _productService.updateProduct(updatedProduct);
       }
+      if (!mounted) return;
       Navigator.pop(context, true); // Pop with true to indicate success
     }
   }
@@ -78,6 +109,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true, // Added this line
       appBar: AppBar(
         title: Text(widget.product == null ? 'Add Product' : 'Edit Product'),
       ),
@@ -111,25 +143,33 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                   return null;
                 },
               ),
-              TextFormField(
-                controller: _skuController,
-                decoration: const InputDecoration(labelText: 'SKU (Optional)'),
-              ),
-              TextFormField(
-                controller: _stockQuantityController,
-                decoration: const InputDecoration(labelText: 'Stock Quantity'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter stock quantity';
-                  }
-                  if (int.tryParse(value) == null) {
-                    return 'Please enter a valid integer';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
+              if (_useSkuField)
+                TextFormField(
+                  controller: _skuController,
+                  decoration: const InputDecoration(labelText: 'SKU'),
+                  validator: (value) {
+                    return null;
+                  },
+                ),
+              if (_useSkuField) const SizedBox(height: 16.0),
+              if (_useInventoryTracking)
+                TextFormField(
+                  controller: _stockQuantityController,
+                  decoration: const InputDecoration(
+                    labelText: 'Stock Quantity',
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter stock quantity';
+                    }
+                    if (int.tryParse(value) == null) {
+                      return 'Please enter a valid integer';
+                    }
+                    return null;
+                  },
+                ),
+              if (_useInventoryTracking) const SizedBox(height: 16.0),
               ElevatedButton(
                 onPressed: _saveProduct,
                 child: const Text('Save Product'),

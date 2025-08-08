@@ -5,13 +5,10 @@ import 'package:poshit/models/product.dart';
 import 'package:poshit/services/transaction_service.dart';
 import 'package:poshit/services/product_service.dart';
 import 'package:poshit/utils/currency_formatter.dart';
-import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
+
 
 class InvoiceScreen extends StatefulWidget {
   final int transactionId;
@@ -59,7 +56,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                 ),
               ),
               pw.SizedBox(height: 10),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 headers: ['Product', 'Qty', 'Price', 'Subtotal'],
                 data: items.map((item) {
                   final product = productMap[item.productId];
@@ -106,6 +103,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     );
   }
 
+  /*
   Future<void> _shareInvoicePdf(
     Transaction transaction,
     List<TransactionItem> items,
@@ -138,7 +136,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                 ),
               ),
               pw.SizedBox(height: 10),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 headers: ['Product', 'Qty', 'Price', 'Subtotal'],
                 data: items.map((item) {
                   final product = productMap[item.productId];
@@ -187,8 +185,9 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
     final file = File(filePath);
     await file.writeAsBytes(output);
 
-    await Share.shareXFiles([XFile(filePath)], text: 'Here is your invoice.');
+    await Share.share(text: 'Here is your invoice.', files: [filePath]);
   }
+  */
 
   @override
   void initState() {
@@ -330,12 +329,14 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                         icon: const Icon(Icons.print),
                         label: const Text('Print Invoice'),
                       ),
+                      /*
                       ElevatedButton.icon(
                         onPressed: () =>
                             _shareInvoicePdf(transaction, items, productMap),
                         icon: const Icon(Icons.share),
                         label: const Text('Share PDF'),
                       ),
+                      */
                     ],
                   ),
                 ),

@@ -5,13 +5,15 @@ import 'package:poshit/utils/currency_formatter.dart';
 import 'package:bluetooth_print_plus/bluetooth_print_plus.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
-import 'package:printing/printing.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:collection/collection.dart';
+import 'package:poshit/services/settings_service.dart';
 
 class ReceiptPreviewScreen extends StatefulWidget {
   final Transaction transaction;
@@ -20,306 +22,299 @@ class ReceiptPreviewScreen extends StatefulWidget {
   final double changeGiven;
 
   const ReceiptPreviewScreen({
-    Key? key,
+    super.key,
     required this.transaction,
     required this.transactionItems,
     required this.cashReceived,
     required this.changeGiven,
-  }) : super(key: key);
+  });
 
   @override
   State<ReceiptPreviewScreen> createState() => _ReceiptPreviewScreenState();
 }
 
 class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
+  final SettingsService _settingsService = SettingsService();
   List<BluetoothDevice> _devices = [];
   BluetoothDevice? _device;
-  String _selectedPrinterType = 'Bluetooth'; // Default to Bluetooth
+  String _businessName = 'My Store';
+  String _receiptFooter = 'Thank you!';
 
-  // BluetoothPrintPlus.isConnected is a ValueNotifier<bool>
-  bool get _connected => BluetoothPrintPlus.isConnected;
+  // Bluetooth is unsupported on Windows in this app; guard calls on Windows
+  bool get _connected =>
+      Platform.isWindows ? false : BluetoothPrintPlus.isConnected;
 
   @override
   void initState() {
     super.initState();
-    _loadPrinterType();
-    _initBluetooth(); // Call _initBluetooth to start scanning and attempt auto-connect
-    BluetoothPrintPlus.connectState.listen((state) {
-      if (mounted) setState(() {});
-    });
+    if (!Platform.isWindows) {
+      _initBluetooth(); // Only initialize Bluetooth on supported platforms
+      BluetoothPrintPlus.connectState.listen((state) {
+        if (mounted) setState(() {});
+      });
+    }
+    _loadSettings();
   }
 
-  Future<void> _loadPrinterType() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _selectedPrinterType = prefs.getString('printerType') ?? 'Bluetooth';
-    });
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload settings when dependencies change (e.g., when screen is opened)
+    _loadSettings();
   }
 
-  Future<void> _savePrinterType(String type) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('printerType', type);
+  Future<void> _loadSettings() async {
+    final businessName = await _settingsService.getBusinessName();
+    final receiptFooter = await _settingsService.getReceiptFooter();
+    if (mounted) {
+      setState(() {
+        _businessName = businessName;
+        _receiptFooter = receiptFooter;
+      });
+    }
   }
 
-  Future<void> _saveLastConnectedDeviceAddress(String address) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('lastConnectedPrinterAddress', address);
-  }
-
-  void _onConnectionChanged() {
-    setState(() {});
-  }
+  // Removed printer type preference as only Bluetooth is supported currently
 
   Future<void> _initBluetooth() async {
     final prefs = await SharedPreferences.getInstance();
     final lastAddress = prefs.getString('lastConnectedPrinterAddress');
 
     BluetoothPrintPlus.scanResults.listen((devices) async {
+      if (!mounted) return;
       setState(() {
         _devices = devices;
       });
-      if (lastAddress != null && _device == null) { // Only try to auto-connect if no device is currently selected
-        final deviceToConnect = devices.firstWhereOrNull((d) => d.address == lastAddress);
+      if (lastAddress != null && _device == null) {
+        // Only try to auto-connect if no device is currently selected
+        final deviceToConnect = devices.firstWhereOrNull(
+          (d) => d.address == lastAddress,
+        );
         if (deviceToConnect != null) {
-          _device = deviceToConnect; // Set the device for UI
+          setState(() {
+            _device = deviceToConnect; // Set the device for UI
+          });
           await _connect(); // Attempt to connect
         }
       }
     });
 
-    BluetoothPrintPlus.connectState.listen((state) {
-      setState(() {});
-    });
+    if (!Platform.isWindows) {
+      BluetoothPrintPlus.connectState.listen((state) {
+        if (mounted) setState(() {});
+      });
+    }
 
     await BluetoothPrintPlus.startScan(timeout: const Duration(seconds: 4));
   }
 
   Future<void> _connect() async {
     if (_device == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No device selected')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No device selected'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
       return;
     }
     try {
-      await BluetoothPrintPlus.connect(_device!);
-      await _saveLastConnectedDeviceAddress(_device!.address!);
+      await BluetoothPrintPlus.connect(
+        _device!,
+      ); // _device is checked for null above
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Connected to ${_device!.name ?? "Printer"}')),
+        SnackBar(
+          content: Text('Connected to ${_device?.name}'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to connect: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to connect: $e'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
     }
   }
 
   Future<void> _disconnect() async {
     try {
       await BluetoothPrintPlus.disconnect();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Disconnected')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Disconnected'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to disconnect: $e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to disconnect: $e'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
+        ),
+      );
     }
   }
 
   double _getItemTotal(TransactionItem item) {
-    // Fallback to 0 if null
-    return (item.priceAtTransaction ?? 0) * (item.quantity ?? 0);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+    return item.priceAtTransaction * item.quantity;
   }
 
   Future<void> _printReceipt() async {
-    if (_selectedPrinterType == 'Bluetooth') {
-      if (!_connected) {
+    if (!_connected) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please connect to a Bluetooth printer first.'),
+        ),
+      );
+      return;
+    }
+
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(PaperSize.mm80, profile);
+    List<int> bytes = [];
+
+    bytes += generator.text(
+      _businessName,
+      styles: const PosStyles(
+        align: PosAlign.center,
+        bold: true,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+      ),
+    );
+    bytes += generator.text(
+      "--------------------------------",
+      styles: const PosStyles(align: PosAlign.center),
+    );
+    bytes += generator.text(
+      "Transaction ID: ${widget.transaction.id}",
+      styles: const PosStyles(align: PosAlign.left),
+    );
+    bytes += generator.text(
+      "Date: ${widget.transaction.transactionDate}",
+      styles: const PosStyles(align: PosAlign.left),
+    );
+    bytes += generator.text(
+      "--------------------------------",
+      styles: const PosStyles(align: PosAlign.center),
+    );
+
+    for (var item in widget.transactionItems) {
+      bytes += generator.text(
+        "${item.productName} x ${item.quantity}",
+        styles: const PosStyles(align: PosAlign.left),
+      );
+      bytes += generator.text(
+        formatToIDR(_getItemTotal(item)),
+        styles: const PosStyles(align: PosAlign.right),
+      );
+    }
+    bytes += generator.text(
+      "--------------------------------",
+      styles: const PosStyles(align: PosAlign.center),
+    );
+    bytes += generator.text(
+      "Subtotal: ${formatToIDR(widget.transaction.totalAmount)}",
+      styles: const PosStyles(align: PosAlign.right),
+    );
+    bytes += generator.text(
+      "Discount: ${formatToIDR(0)}",
+      styles: const PosStyles(align: PosAlign.right),
+    );
+    bytes += generator.text(
+      "Total: ${formatToIDR(widget.transaction.totalAmount)}",
+      styles: const PosStyles(
+        align: PosAlign.right,
+        bold: true,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+      ),
+    );
+    bytes += generator.text(
+      "Cash Received: ${formatToIDR(widget.cashReceived)}",
+      styles: const PosStyles(align: PosAlign.right),
+    );
+    bytes += generator.text(
+      "Change: ${formatToIDR(widget.changeGiven)}",
+      styles: const PosStyles(align: PosAlign.right),
+    );
+    bytes += generator.text(
+      "--------------------------------",
+      styles: const PosStyles(align: PosAlign.center),
+    );
+    bytes += generator.text(
+      _receiptFooter,
+      styles: const PosStyles(align: PosAlign.center),
+    );
+    bytes += generator.feed(4);
+    bytes += generator.cut();
+
+    await BluetoothPrintPlus.write(Uint8List.fromList(bytes));
+  }
+
+  Future<void> _generateAndSavePdf() async {
+    final pdfBytes = await _buildReceiptPdfBytes();
+
+    try {
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = await getExternalStorageDirectory();
+      } else if (Platform.isIOS) {
+        directory = await getApplicationDocumentsDirectory();
+      } else {
+        directory = await getDownloadsDirectory();
+      }
+      if (directory == null) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please connect to a Bluetooth printer first.'),
+            content: Text('Could not access downloads directory.'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(milliseconds: 2000),
           ),
         );
         return;
       }
-
-      final profile = await CapabilityProfile.load();
-      final generator = Generator(PaperSize.mm80, profile);
-      List<int> bytes = [];
-
-      bytes += generator.text(
-        "PoSHIT Store",
-        styles: const PosStyles(
-          align: PosAlign.center,
-          bold: true,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+      final file = File(
+        '${directory.path}/receipt_${widget.transaction.id}.pdf',
+      );
+      await file.writeAsBytes(pdfBytes);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Receipt saved to ${directory.path}'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
         ),
       );
-      bytes += generator.text(
-        "--------------------------------",
-        styles: const PosStyles(align: PosAlign.center),
-      );
-      bytes += generator.text(
-        "Transaction ID: ${widget.transaction.id}",
-        styles: const PosStyles(align: PosAlign.left),
-      );
-      bytes += generator.text(
-        "Date: ${widget.transaction.transactionDate}",
-        styles: const PosStyles(align: PosAlign.left),
-      );
-      bytes += generator.text(
-        "--------------------------------",
-        styles: const PosStyles(align: PosAlign.center),
-      );
-
-      for (var item in widget.transactionItems) {
-        bytes += generator.text(
-          "${item.productName} x ${item.quantity}",
-          styles: const PosStyles(align: PosAlign.left),
-        );
-        bytes += generator.text(
-          formatToIDR(_getItemTotal(item)),
-          styles: const PosStyles(align: PosAlign.right),
-        );
-      }
-      bytes += generator.text(
-        "--------------------------------",
-        styles: const PosStyles(align: PosAlign.center),
-      );
-      bytes += generator.text(
-        "Subtotal: ${formatToIDR(widget.transaction.totalAmount)}",
-        styles: const PosStyles(align: PosAlign.right),
-      );
-      bytes += generator.text(
-        "Discount: ${formatToIDR(0)}",
-        styles: const PosStyles(align: PosAlign.right),
-      );
-      bytes += generator.text(
-        "Total: ${formatToIDR(widget.transaction.totalAmount)}",
-        styles: const PosStyles(
-          align: PosAlign.right,
-          bold: true,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving PDF: $e'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(milliseconds: 2000),
         ),
       );
-      bytes += generator.text(
-        "Cash Received: ${formatToIDR(widget.cashReceived)}",
-        styles: const PosStyles(align: PosAlign.right),
-      );
-      bytes += generator.text(
-        "Change: ${formatToIDR(widget.changeGiven)}",
-        styles: const PosStyles(align: PosAlign.right),
-      );
-      bytes += generator.text(
-        "--------------------------------",
-        styles: const PosStyles(align: PosAlign.center),
-      );
-      bytes += generator.text(
-        "Thank You!",
-        styles: const PosStyles(align: PosAlign.center),
-      );
-      bytes += generator.feed(4);
-      bytes += generator.cut();
-
-      await BluetoothPrintPlus.write(Uint8List.fromList(bytes));
-    } else if (_selectedPrinterType == 'System Printer') {
-      // Generate PDF for system printer
-      final pdf = pw.Document();
-
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          build: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Center(
-                  child: pw.Text(
-                    "PoSHIT Store",
-                    style: pw.TextStyle(
-                      fontSize: 24,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                ),
-                pw.SizedBox(height: 20),
-                pw.Text("Transaction ID: ${widget.transaction.id}"),
-                pw.Text("Date: ${widget.transaction.transactionDate}"),
-                pw.Divider(),
-                pw.Text(
-                  "Items:",
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                ),
-                ...widget.transactionItems.map(
-                  (item) => pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      pw.Text("${item.productName} x ${item.quantity}"),
-                      pw.Text(formatToIDR(_getItemTotal(item))),
-                    ],
-                  ),
-                ),
-                pw.Divider(),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text("Subtotal:"),
-                    pw.Text(formatToIDR(widget.transaction.totalAmount)),
-                  ],
-                ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [pw.Text("Discount:"), pw.Text(formatToIDR(0))],
-                ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      "Total:",
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                    ),
-                    pw.Text(
-                      formatToIDR(widget.transaction.totalAmount),
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                    ),
-                  ],
-                ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text("Cash Received:"),
-                    pw.Text(formatToIDR(widget.cashReceived)),
-                  ],
-                ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text("Change:"),
-                    pw.Text(formatToIDR(widget.changeGiven)),
-                  ],
-                ),
-                pw.SizedBox(height: 20),
-                pw.Center(child: pw.Text("Thank You!")),
-              ],
-            );
-          },
-        ),
-      );
-
-      await Printing.layoutPdf(onLayout: (format) async => pdf.save());
     }
   }
 
-  Future<void> _generateAndSavePdf() async {
+  Future<Uint8List> _buildReceiptPdfBytes() async {
     final pdf = pw.Document();
-
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -329,7 +324,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
             children: [
               pw.Center(
                 child: pw.Text(
-                  "PoSHIT Store",
+                  _businessName,
                   style: pw.TextStyle(
                     fontSize: 24,
                     fontWeight: pw.FontWeight.bold,
@@ -363,10 +358,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text("Discount:"),
-                  pw.Text(formatToIDR(0)), // Assuming no discount for now
-                ],
+                children: [pw.Text("Discount:"), pw.Text(formatToIDR(0))],
               ),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -396,42 +388,18 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                 ],
               ),
               pw.SizedBox(height: 20),
-              pw.Center(child: pw.Text("Thank You!")),
+              pw.Center(child: pw.Text(_receiptFooter)),
             ],
           );
         },
       ),
     );
+    return Uint8List.fromList(await pdf.save());
+  }
 
-    try {
-      Directory? directory;
-      if (Platform.isAndroid) {
-        directory = await getExternalStorageDirectory();
-      } else if (Platform.isIOS) {
-        directory = await getApplicationDocumentsDirectory();
-      } else {
-        directory = await getDownloadsDirectory();
-      }
-      if (directory == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not access downloads directory.'),
-          ),
-        );
-        return;
-      }
-      final file = File(
-        '${directory.path}/receipt_${widget.transaction.id}.pdf',
-      );
-      await file.writeAsBytes(await pdf.save());
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Receipt saved to ${directory!.path}')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving PDF: $e')));
-    }
+  Future<void> _printWithSystem() async {
+    final bytes = await _buildReceiptPdfBytes();
+    await Printing.layoutPdf(onLayout: (format) async => bytes);
   }
 
   @override
@@ -442,6 +410,7 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
         leading: IconButton(
           icon: const Icon(Icons.done),
           onPressed: () {
+            if (!mounted) return;
             Navigator.of(context).popUntil(
               (route) => route.isFirst,
             ); // Go back to main sales screen
@@ -463,37 +432,37 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                   children: [
                     Center(
                       child: Text(
-                        "PoSHIT Store",
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        _businessName,
+                        style: Theme.of(context).textTheme.headlineSmall!
+                            .copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
                     const Divider(),
                     Text("Transaction ID: ${widget.transaction.id}"),
-                    Text("Date: ${widget.transaction.transactionDate}"),
+                    Text(
+                      "Date: ${formatDateTime(widget.transaction.transactionDate)}",
+                    ),
                     const Divider(),
                     Text(
                       "Items:",
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    ...widget.transactionItems
-                        .map(
-                          (item) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    "${item.productName} x ${item.quantity}",
-                                  ),
-                                ),
-                                Text(formatToIDR(_getItemTotal(item))),
-                              ],
+                    ...widget.transactionItems.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                "${item.productName} x ${item.quantity}",
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
+                            Text(formatToIDR(_getItemTotal(item))),
+                          ],
+                        ),
+                      ),
+                    ),
                     const Divider(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -540,61 +509,42 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    const Center(child: Text("Thank You!")),
+                    Center(child: Text(_receiptFooter)),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            // Printer Type Selection
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Select Printer Type',
-              ),
-              value: _selectedPrinterType,
-              items: const [
-                DropdownMenuItem(
-                  value: 'Bluetooth',
-                  child: Text('Bluetooth Printer'),
-                ),
-                DropdownMenuItem(
-                  value: 'System Printer',
-                  child: Text('System Printer (USB/Wired)'),
-                ),
-              ],
-              onChanged: (type) {
-                if (type != null) {
-                  setState(() {
-                    _selectedPrinterType = type;
-                  });
-                  _savePrinterType(type); // Save the selected type
-                }
-              },
-            ),
-            const SizedBox(height: 20), // Add some spacing
-            // Bluetooth Printer Selection (only visible if Bluetooth is selected)
-            if (_selectedPrinterType == 'Bluetooth') ...[
-              DropdownButtonFormField<BluetoothDevice>(
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Select Bluetooth Printer',
-                ),
-                value: _device,
-                items: _devices
-                    .map(
-                      (device) => DropdownMenuItem(
-                        value: device,
-                        child: Text(device.name ?? "Unknown Device"),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (device) {
-                  setState(() {
-                    _device = device;
-                  });
-                },
-              ),
+            // Bluetooth Device Selection (disabled on Windows)
+            if (!Platform.isWindows) ...[
+              if (_devices.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Select Bluetooth Printer:'),
+                    DropdownButton<BluetoothDevice>(
+                      value: _device,
+                      hint: const Text('Choose device'),
+                      isExpanded: true,
+                      items: _devices.map((device) {
+                        final label = device.name.isNotEmpty
+                            ? device.name
+                            : device.address;
+                        return DropdownMenuItem<BluetoothDevice>(
+                          value: device,
+                          child: Text(label),
+                        );
+                      }).toList(),
+                      onChanged: (device) {
+                        setState(() {
+                          _device = device;
+                        });
+                      },
+                    ),
+                  ],
+                )
+              else
+                const Text('No Bluetooth devices found. Please scan again.'),
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -611,14 +561,22 @@ class _ReceiptPreviewScreenState extends State<ReceiptPreviewScreen> {
                   ),
                 ],
               ),
-            ] else if (_selectedPrinterType == 'System Printer') ...[
-              // For System Printer, the print button is always enabled
-              ElevatedButton(
-                onPressed: _printReceipt,
-                child: const Text('Print'),
+            ] else ...[
+              const Text(
+                'Bluetooth printing is not supported on Windows. Use Download PDF or System Print.',
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _printWithSystem,
+                    icon: const Icon(Icons.print),
+                    label: const Text('System Print'),
+                  ),
+                ],
               ),
             ],
-            const SizedBox(height: 20), // Add some spacing
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: _generateAndSavePdf,

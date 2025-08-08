@@ -26,16 +26,12 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   @override
   void initState() {
     super.initState();
-    _transactionsFuture = _transactionService.getTransactions().then(
-      (list) => list.cast<Transaction>(),
-    );
+    _transactionsFuture = _transactionService.getTransactions();
   }
 
   Future<void> _refreshTransactions() async {
     setState(() {
-      _transactionsFuture = _transactionService
-          .getTransactions(startDate: _startDate, endDate: _endDate)
-          .then((list) => list.cast<Transaction>());
+      _transactionsFuture = _transactionService.getTransactions();
     });
   }
 
@@ -47,6 +43,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
       lastDate: DateTime(2101),
     );
     if (picked != null) {
+      if (!mounted) return;
       setState(() {
         if (isStartDate) {
           _startDate = picked;
@@ -61,6 +58,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   Future<void> _generateTransactionListPdf(
     List<Transaction> transactions,
   ) async {
+    // Sort transactions by ID ascending
+    final sortedTransactions = List<Transaction>.from(transactions)
+      ..sort((a, b) => (a.id ?? 0).compareTo(b.id ?? 0));
+
     final pdf = pw.Document();
 
     pdf.addPage(
@@ -82,9 +83,9 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                   'Date Range: ${formatDate(_startDate!)} - ${formatDate(_endDate!)}',
                 ),
               pw.SizedBox(height: 20),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 headers: ['ID', 'Total Amount', 'Date'],
-                data: transactions.map((transaction) {
+                data: sortedTransactions.map((transaction) {
                   return [
                     transaction.id.toString(),
                     formatToIDR(transaction.totalAmount),
@@ -188,6 +189,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                 .getTransactionItems(
                                   transaction.id!,
                                 ); // Fetch items
+                            if (!mounted) return;
                             Navigator.push(
                               context,
                               MaterialPageRoute(

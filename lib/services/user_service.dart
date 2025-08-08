@@ -1,6 +1,7 @@
-import 'package:sqflite/sqflite.dart';
 import 'package:poshit/database_helper.dart';
 import 'package:poshit/models/user.dart';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 
 class UserService {
   final DatabaseHelper _dbHelper = DatabaseHelper();
@@ -30,11 +31,7 @@ class UserService {
 
   Future<int> deleteUser(int id) async {
     final db = await _dbHelper.database;
-    return await db.delete(
-      'users',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('users', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<User?> getUserByUsername(String username) async {
@@ -49,5 +46,37 @@ class UserService {
     } else {
       return null;
     }
+  }
+
+  Future<User?> getUserById(int id) async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    } else {
+      return null;
+    }
+  }
+
+  Future<User?> authenticateUser(String username, String password) async {
+    final user = await getUserByUsername(username);
+    if (user != null) {
+      // For now, we'll do simple password comparison
+      // In a real app, you should use proper password hashing
+      if (user.password == password) {
+        return user;
+      }
+    }
+    return null;
+  }
+
+  String hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
   }
 }

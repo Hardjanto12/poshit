@@ -1,4 +1,4 @@
-"I want to build a Point of Sales Android app named 'PoSHIT'.
+""I want to build a Point of Sales Android app named 'PoSHIT'.
 
 Core Features:
 
@@ -162,3 +162,57 @@ Not create a PDF.
 Instead, use a package like esc_pos_utils_plus to build the receipt as a sequence of raw text and ESC/POS commands (for text alignment, bolding, and the paper cut command).
 
 Send these raw commands directly to the connected printer (either Bluetooth or USB, based on the settings)."
+
+
+** UPDATE 7 **
+
+I want to create a comprehensive 'Settings' page for my POS app, with all settings saved in the main SQLite database.
+
+1. Settings Storage
+First, update the DatabaseHelper class. Create a new table named settings designed to store key-value pairs. It should have two columns:
+
+key (TEXT, PRIMARY KEY)
+
+value (TEXT)
+
+Create a SettingsService that interacts with this table to save and retrieve settings. It should manage default values if a setting doesn't exist in the database yet. The settings to manage are:
+
+useInventoryTracking (value stored as 'true'/'false', defaults to 'true')
+
+useSkuField (value stored as 'true'/'false', defaults to 'true')
+
+businessName (value stored as text, defaults to 'My Store')
+
+receiptFooter (value stored as text, defaults to 'Thank you!')
+
+2. Settings Page UI
+Next, create a new 'Settings' page that contains all of the following controls:
+
+A TextField labeled "Business Name" to edit the businessName.
+
+A TextField labeled "Receipt Footer Note" to edit the receiptFooter.
+
+A switch tile labeled "Enable Inventory Tracking" to control the useInventoryTracking setting.
+
+A switch tile labeled "Enable Product SKUs" to control the useSkuField setting.
+
+Changes made on this page should be saved to the database immediately via the SettingsService.
+
+3. Conditional App Logic
+Finally, apply logic throughout the app to respect these settings:
+
+Receipt Generation: The receipt logic (for both PDF and thermal printing) must use the businessName for the header and the receiptFooter for the footer note.
+
+Inventory Logic (if useInventoryTracking is false):
+
+Hide the stock_quantity field on the 'Add/Edit Product' screen.
+
+Do not decrease stock levels when a sale is completed.
+
+Hide all stock count displays from product lists.
+
+SKU Logic (if useSkuField is false):
+
+Hide the sku field on the 'Add/Edit Product' screen.
+
+Do not display the SKU on product lists or receipts."
